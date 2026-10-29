@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // -------------------------------------------------------------
+    // USERS COLLECTION
+    // Path: /users/{userId}
+    // -------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // -------------------------------------------------------------
+    // PROPERTIES COLLECTION
+    // Path: /properties/{propertyId}
+    // -------------------------------------------------------------
+    match /properties/{propertyId} {
+      // Anyone can browse listings
+      allow read: if true;
+      
+      // Any logged-in owner can create listings
+      allow create: if isAuthenticated();
+      
+      // Owners can update or delete their own listings
+      allow update, delete: if isAuthenticated() 
+        && (resource.data.ownerUid == request.auth.uid || !('ownerUid' in resource.data));
+    }
+
+    // -------------------------------------------------------------
+    // REPORTS COLLECTION
+    // Path: /reports/{reportId}
+    // -------------------------------------------------------------
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated();
+    }
+  }
+}
