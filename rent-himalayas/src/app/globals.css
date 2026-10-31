@@ -1683,70 +1683,399 @@ body {
   gap: 8px;
   margin-bottom: 18px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 20;
 }
 
-.filter-chip-pill {
+/* Modern Interactive Filter Buttons */
+.roomster-filter-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 7px;
+  padding: 7px 16px;
   border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
+  border: 1.5px solid #E2E8F0;
   background: #ffffff;
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
-  transition: all 0.2s;
-  outline: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  user-select: none;
+  position: relative;
 }
 
-.filter-chip-pill:hover,
-.filter-chip-pill.active {
+.roomster-filter-btn:hover {
+  border-color: #94A3B8;
+  color: #0F172A;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.roomster-filter-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.roomster-filter-btn.active {
   border-color: var(--primary);
+  background: #FFF7ED;
   color: var(--primary);
-  background: var(--primary-light);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(242, 106, 27, 0.18);
 }
 
-.filter-chip-select {
-  border: 1px solid var(--border-color);
-  background: #ffffff;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.filter-chip-select:focus,
-.filter-chip-select.active {
+.roomster-filter-btn.is-open {
   border-color: var(--primary);
-  background: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(242, 106, 27, 0.15);
 }
 
-.filter-chip-search {
+/* Active filter count/dot indicator */
+.filter-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: inline-block;
+}
+
+/* Dropdown Container */
+.filter-popover-anchor {
+  position: relative;
+  display: inline-block;
+}
+
+/* Backdrop for popovers */
+.popover-backdrop-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  background: transparent;
+}
+
+/* ============================================================
+   BUDGET SLIDER POPUP (EXACT MATCH TO USER SCREENSHOT)
+   ============================================================ */
+.budget-popup-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid #CBD5E1;
+  border-radius: 16px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+  padding: 18px 20px;
+  z-index: 1000;
+  animation: slideDownBudgetPopup 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+}
+
+@keyframes slideDownBudgetPopup {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.budget-popup-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  padding: 5px 12px;
-  background: #ffffff;
-  min-width: 140px;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-.filter-chip-search input {
+.budget-popup-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #191E24;
+  letter-spacing: -0.01em;
+}
+
+.budget-popup-close-btn {
+  border: none;
+  background: transparent;
+  color: #64748B;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.budget-popup-close-btn:hover {
+  background: #F1F5F9;
+  color: #191E24;
+}
+
+/* Dual Inputs Row */
+.budget-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.budget-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.budget-input-field {
+  width: 100%;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #191E24;
+  outline: none;
+  background: #ffffff;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.budget-input-field:focus {
+  border-color: #166534;
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.15);
+}
+
+.budget-input-separator {
+  color: #94A3B8;
+  font-size: 1.2rem;
+  font-weight: 300;
+}
+
+/* Green Range Slider (Matches Screenshot) */
+.budget-slider-track-wrap {
+  margin: 12px 4px 18px;
+}
+
+.budget-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #166534; /* Green track matching screenshot */
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.budget-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #166534;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.budget-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 10px rgba(22, 101, 52, 0.35);
+}
+
+.budget-range-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #166534;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+/* Preset Quick Chips */
+.budget-preset-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.budget-preset-btn {
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.budget-preset-btn:hover {
+  background: #EDFDF2;
+  border-color: #86EFAC;
+  color: #166534;
+}
+
+.budget-preset-btn.selected {
+  background: #166534;
+  color: #ffffff;
+  border-color: #166534;
+}
+
+/* Budget Popup Footer (Clear & Show results) */
+.budget-popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.budget-clear-btn {
+  border: none;
+  background: transparent;
+  color: #191E24;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 6px 4px;
+  transition: color 0.15s;
+}
+
+.budget-clear-btn:hover {
+  color: #DC2626;
+}
+
+.budget-show-results-btn {
+  border: none;
+  background: #191E24;
+  color: #ffffff;
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.budget-show-results-btn:hover {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   GENERIC POPOVER DROPDOWN MENU (FOR ROOM TYPE & FURNISHING)
+   ============================================================ */
+.filter-dropdown-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 210px;
+  background: #ffffff;
+  border: 1px solid #CBD5E1;
+  border-radius: 14px;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1000;
+  animation: slideDownBudgetPopup 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-dropdown-item:hover {
+  background: #F8FAFC;
+  color: #0F172A;
+}
+
+.filter-dropdown-item.selected {
+  background: #FFF7ED;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* Live Search Pill with Locality Autocomplete */
+.filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  background: #ffffff;
+  min-width: 170px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.filter-search-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(242, 106, 27, 0.15);
+}
+
+.filter-search-box input {
   border: none;
   outline: none;
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   width: 100%;
   color: var(--text-main);
+  background: transparent;
 }
 
-/* Subhead with Listing Count & Add listing button */
+/* Locality Search Autocomplete Dropdown */
+.search-locality-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: -60px;
+  background: #ffffff;
+  border: 1px solid #CBD5E1;
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  z-index: 1100;
+  max-height: 280px;
+  overflow-y: auto;
+  animation: slideDownBudgetPopup 0.2s ease-out;
+}
+
+.search-locality-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.search-locality-item:hover {
+  background: #FFF7ED;
+}
+
+/* Subhead with Clean Listing Count (Add listing removed as requested) */
 .rooms-subhead-row {
   display: flex;
   align-items: center;
@@ -1760,26 +2089,13 @@ body {
   font-size: 1.15rem;
   font-weight: 800;
   color: #191E24;
+  letter-spacing: -0.01em;
 }
 
-.btn-add-listing-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  background: #191E24;
-  color: #ffffff;
-  font-size: 0.86rem;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-add-listing-inline:hover {
-  background: var(--primary);
-  transform: translateY(-1px);
+.rooms-subhead-badge {
+  font-size: 0.8rem;
+  color: #64748B;
+  font-weight: 600;
 }
 
 /* 2-Column Responsive Card Grid in Split Pane */

@@ -16,14 +16,28 @@ import { PropertyListing } from "@/types";
 const PROPERTIES_COLLECTION = "properties";
 
 /**
+ * Strips any undefined fields from object to prevent Firestore unsupported field value errors.
+ */
+function cleanFirestoreData<T extends Record<string, any>>(data: T): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Creates a new property rental listing in Cloud Firestore.
  */
 export async function createPropertyListing(
   data: Omit<PropertyListing, "id" | "createdAt" | "updatedAt">
 ): Promise<string> {
   const collectionRef = collection(db, PROPERTIES_COLLECTION);
+  const cleanData = cleanFirestoreData(data);
   const docRef = await addDoc(collectionRef, {
-    ...data,
+    ...cleanData,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

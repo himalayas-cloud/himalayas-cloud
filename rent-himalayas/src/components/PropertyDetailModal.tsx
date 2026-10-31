@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   X,
   Phone,
@@ -15,6 +16,27 @@ import {
   Maximize2,
   Sparkles,
 } from "lucide-react";
+
+const PropertyDetailMap = dynamic(() => import("./PropertyDetailMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: "230px",
+        background: "#F1F5F9",
+        borderRadius: "14px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#64748B",
+        fontSize: "0.85rem",
+        margin: "20px 0",
+      }}
+    >
+      Loading map...
+    </div>
+  ),
+});
 
 export interface PropertyDetail {
   id: string;
@@ -31,6 +53,7 @@ export interface PropertyDetail {
   type?: string;
   description?: string;
   status?: string;
+  coordinates?: [number, number];
 }
 
 interface PropertyDetailModalProps {
@@ -277,6 +300,16 @@ export default function PropertyDetailModal({
                 }, ${property.city}. Surrounded by refreshing Himalayan views, clean water supply, and easy connectivity to local transport.`}
             </p>
           </div>
+
+          {/* Pinpointed Location on Map with Turn-by-Turn Directions */}
+          <PropertyDetailMap
+            coordinates={property.coordinates}
+            title={property.title}
+            locality={property.locality}
+            city={property.city}
+            address={property.address}
+            price={property.price}
+          />
 
           {/* Owner Info Card */}
           <div className="detail-owner-card">

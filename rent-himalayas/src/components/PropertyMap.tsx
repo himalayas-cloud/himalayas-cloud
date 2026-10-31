@@ -2,12 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { PropertyDetail } from "./PropertyDetailModal";
+import { getCoordinatesForLocality, parseValidCoordinates } from "@/lib/localities";
 
 interface PropertyMapProps {
   properties: PropertyDetail[];
   selectedCity: string;
   selectedProperty: PropertyDetail | null;
   hoveredPropertyId?: string | null;
+  panToCoordinate?: [number, number] | null;
   onSelectProperty: (property: PropertyDetail) => void;
 }
 
@@ -24,6 +26,7 @@ export default function PropertyMap({
   selectedCity,
   selectedProperty,
   hoveredPropertyId,
+  panToCoordinate,
   onSelectProperty,
 }: PropertyMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +56,7 @@ export default function PropertyMap({
       const map = L.map(mapContainerRef.current, {
         center: defaultCenter,
         zoom: defaultZoom,
-        zoomControl: false, // Custom position or standard
+        zoomControl: false,
       });
 
       // Add Zoom Control to Top Right (matches Roomster layout)
@@ -88,6 +91,25 @@ export default function PropertyMap({
     mapInstanceRef.current.flyTo(center, zoom, { duration: 1.2 });
   }, [selectedCity]);
 
+  // Fly to coordinate when searched or clicked
+  useEffect(() => {
+    if (!mapInstanceRef.current || !panToCoordinate) return;
+    mapInstanceRef.current.flyTo(panToCoordinate, 15, { duration: 1.2 });
+  }, [panToCoordinate]);
+
+  // Center on selected property
+  useEffect(() => {
+    if (!mapInstanceRef.current || !selectedProperty) return;
+    const exactCoord = parseValidCoordinates(
+      selectedProperty.coordinates,
+      selectedProperty.city,
+      selectedProperty.locality
+    );
+    if (exactCoord && !isNaN(exactCoord[0]) && !isNaN(exactCoord[1])) {
+      mapInstanceRef.current.flyTo(exactCoord, 15, { duration: 1.0 });
+    }
+  }, [selectedProperty]);
+
   // Update Markers for properties
   useEffect(() => {
     if (!mapLoaded || !mapInstanceRef.current) return;
@@ -107,12 +129,14 @@ export default function PropertyMap({
       markersRef.current = {};
 
       properties.forEach((prop, idx) => {
-        // Base coordinate from city with slight unique deterministic jitter so multiple rooms in same town don't overlap exactly
-        const baseCoord = CITY_COORDINATES[prop.city] || CITY_COORDINATES["Solan"];
-        const jitterLat = ((idx * 17) % 11 - 5) * 0.005;
-        const jitterLng = ((idx * 23) % 11 - 5) * 0.005;
-        const lat = baseCoord[0] + jitterLat;
-        const lng = baseCoord[1] + jitterLng;
+        // Resolve exact geographical coordinates with zero NaN risk
+        const exactCoord = parseValidCoordinates(prop.coordinates, prop.city, prop.locality);
+        const microJitterLat = ((idx % 3) - 1) * 0.0006;
+        const microJitterLng = (((idx + 1) % 3) - 1) * 0.0006;
+        const lat = exactCoord[0] + microJitterLat;
+        const lng = exactCoord[1] + microJitterLng;
+
+        if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
 
         const isHovered = hoveredPropertyId === prop.id;
         const isSelected = selectedProperty?.id === prop.id;
@@ -141,10 +165,10 @@ export default function PropertyMap({
             <div class="map-popup-img" style="background-image: url('${photoUrl}');"></div>
             <div class="map-popup-info">
               <h4 class="map-popup-title">${prop.title}</h4>
-              <p class="map-popup-location">📍 ${prop.city} (${prop.locality || "Himachal"})</p>
+              <p class="map-popup-location">📍 ${prop.locality ? `${prop.locality}, ${prop.city}` : prop.city}</p>
               <div class="map-popup-bottom">
                 <span class="map-popup-price">₹${prop.price.toLocaleString("en-IN")}/mo</span>
-                <button class="map-popup-btn" id="btn-popup-${prop.id}">View</button>
+                <button class="map-popup-btn" id="btn-popup-${prop.id}">View Details</button>
               </div>
             </div>
           </div>

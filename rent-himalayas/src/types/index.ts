@@ -35,6 +35,7 @@ export interface PropertyListing {
   furnished: "Yes" | "No" | "Semi" | "Furnished" | "Semi-Furnished" | "No Furnished" | string;
   photos: string[];
   status: ListingStatus;
+  coordinates?: [number, number]; // [lat, lng] for pinpointing on Leaflet map
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

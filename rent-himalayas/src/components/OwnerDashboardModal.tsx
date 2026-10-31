@@ -1,7 +1,6 @@
-"use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   X,
   PlusCircle,
@@ -17,6 +16,9 @@ import {
   Layers,
   AlertTriangle,
   RotateCw,
+  Search,
+  Loader2,
+  Compass,
 } from "lucide-react";
 import { PropertyListing, ListingStatus } from "@/types";
 import {
@@ -25,9 +27,33 @@ import {
   updatePropertyListing,
   deletePropertyListing,
 } from "@/lib/properties";
+import { getSafeCoordinates, parseValidCoordinates, CITY_BASE_COORDINATES } from "@/lib/localities";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { User } from "firebase/auth";
+
+// Dynamic import of interactive Leaflet Pinpoint Mini Map
+const MiniLocationPicker = dynamic(() => import("./MiniLocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: "140px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F8FAFC",
+        color: "#64748B",
+        fontSize: "0.85rem",
+        borderRadius: "10px",
+        border: "1px dashed #CBD5E1",
+        marginTop: "10px",
+      }}
+    >
+      <span>🗺️ Loading Pinpoint Map...</span>
+    </div>
+  ),
+});
 
 interface OwnerDashboardModalProps {
   isOpen: boolean;
@@ -39,7 +65,7 @@ interface OwnerDashboardModalProps {
 interface ImageUploadItem {
   file?: File;
   previewUrl: string;
-  isUploaded?: boolean;
+  isUploaded: boolean;
 }
 
 export default function OwnerDashboardModal({
@@ -60,6 +86,7 @@ export default function OwnerDashboardModal({
   const [ownerPhone, setOwnerPhone] = useState(user.phoneNumber || "");
   const [city, setCity] = useState<"Solan" | "Nahan" | "Shimla">("Solan");
   const [locationDetails, setLocationDetails] = useState("");
+  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
   const [propertyType, setPropertyType] = useState<"1 Room set" | "2 Room set" | "3 room set">("1 Room set");
   const [furnished, setFurnished] = useState<"No" | "Semi" | "Yes">("No");
   const [price, setPrice] = useState<number | "">("");
@@ -93,6 +120,8 @@ export default function OwnerDashboardModal({
 
     return () => unsubscribe();
   }, [isOpen, user.uid]);
+
+  if (!isOpen) return null;
 
   if (!isOpen) return null;
 
@@ -218,6 +247,13 @@ export default function OwnerDashboardModal({
       // 2. Title generated cleanly from property type and city/locality
       const generatedTitle = `${propertyType} for Rent in ${city} (${locationDetails.trim()})`;
 
+      // Always guaranteed valid coordinates [lat, lng] — never undefined or NaN!
+      const safeCoordinates = parseValidCoordinates(
+        selectedCoordinates,
+        city,
+        locationDetails.trim()
+      );
+
       // 3. Save to Cloud Firestore
       await createPropertyListing({
         ownerUid: user.uid,
@@ -234,12 +270,14 @@ export default function OwnerDashboardModal({
         furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
         photos: photoUrls,
         status: "published",
+        coordinates: safeCoordinates,
       });
 
       setSuccessMsg("🎉 Your room has been published successfully and is now live on Rent Himalayas!");
       
       // Reset form
       setLocationDetails("");
+      setSelectedCoordinates(null);
       setPrice("");
       setFurnished("No");
       setSelectedPhotos([]);
@@ -409,30 +447,55 @@ service cloud.firestore {
                 />
               </div>
 
-              {/* Field 3: Proper Location (City + Address) */}
+              {/* Field 3: Proper Location (City + Address + Online Geocoding + Pinpoint Map) */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <MapPin size={15} color="var(--primary)" />
-                  <span>3. Proper Location *</span>
+                <label className="form-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <MapPin size={15} color="var(--primary)" />
+                    <span>3. Proper Location & Locality *</span>
+                  </span>
+                  {(selectedCoordinates || (locationDetails.trim() ? getSafeCoordinates(locationDetails.trim(), city) : null)) && (
+                    <span style={{ fontSize: "0.76rem", color: "#166534", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <Check size={13} color="#166534" /> Pinpointed in {city} (
+                      {(selectedCoordinates || getSafeCoordinates(locationDetails.trim(), city))[0].toFixed(3)}°N,{" "}
+                      {(selectedCoordinates || getSafeCoordinates(locationDetails.trim(), city))[1].toFixed(3)}°E)
+                    </span>
+                  )}
                 </label>
+                
                 <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "10px" }}>
                   <select
                     className="filter-select"
                     value={city}
-                    onChange={(e) => setCity(e.target.value as "Solan" | "Nahan" | "Shimla")}
+                    onChange={(e) => {
+                      const newCity = e.target.value as "Solan" | "Nahan" | "Shimla";
+                      setCity(newCity);
+                      setSelectedCoordinates(CITY_BASE_COORDINATES[newCity] || CITY_BASE_COORDINATES["Nahan"]);
+                    }}
                   >
                     <option value="Solan">Solan</option>
                     <option value="Nahan">Nahan</option>
                     <option value="Shimla">Shimla</option>
                   </select>
 
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Enter locality / exact landmark (e.g. Chambaghat, Near DC Office)"
-                    value={locationDetails}
-                    onChange={(e) => setLocationDetails(e.target.value)}
-                    required
+                  <div>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Location / Address (e.g. Near Jain Mandir, Naya Bazar)"
+                      value={locationDetails}
+                      onChange={(e) => setLocationDetails(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Interactive Pinpoint Map - Pinpoint manually or by enabling GPS location */}
+                <div style={{ marginTop: "12px" }}>
+                  <MiniLocationPicker
+                    coordinates={selectedCoordinates || parseValidCoordinates(null, city, locationDetails.trim())}
+                    onCoordinatesChange={(coords) => setSelectedCoordinates(coords)}
+                    localityLabel={locationDetails || city}
                   />
                 </div>
               </div>

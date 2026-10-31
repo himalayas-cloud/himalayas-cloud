@@ -21,11 +21,14 @@ import {
   LayoutGrid,
   Map as MapIcon,
   List as ListIcon,
+  Check,
+  SlidersHorizontal,
 } from "lucide-react";
 import { ConfirmationResult } from "firebase/auth";
 import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
 import { subscribePublishedProperties } from "@/lib/properties";
+import { searchLocalities, getCoordinatesForLocality, HIMACHAL_LOCALITIES, parseValidCoordinates } from "@/lib/localities";
 
 // Dynamic import of Leaflet PropertyMap for SSR safety
 const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
@@ -55,13 +58,14 @@ export interface Property extends PropertyDetail {
 const DUMMY_PROPERTIES: Property[] = [
   {
     id: "prop-1",
-    title: "2BHK for Rent in Nahan",
+    title: "2BHK Set Near Ranital Garden",
     price: 15000,
     area: 1200,
-    furnished: "Yes",
+    furnished: "No Furnished",
     city: "Nahan",
-    locality: "Near Landmark",
-    address: "Complete Address, Near Landmark, Nahan",
+    locality: "Ranital",
+    address: "Near Historic Ranital Lake & Garden, Nahan",
+    coordinates: [30.5578, 77.2974],
     ownerName: "Vishal Kumar",
     ownerPhone: "+91 98160 12345",
     photos: [
@@ -71,17 +75,18 @@ const DUMMY_PROPERTIES: Property[] = [
       "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
     ],
     type: "2 Room set",
-    description: "Spacious 2BHK room set with natural mountain light, wide balcony, modern kitchen setup, and 24-hour clean water supply. Walking distance from main market.",
+    description: "Spacious 2BHK room set with natural mountain light, wide balcony, modern kitchen setup, and 24-hour clean water supply. Walking distance from main market and Ranital Garden.",
   },
   {
     id: "prop-2",
-    title: "Spacious 2BHK for Rent in Nahan",
+    title: "Independent 2BHK Near Gunnu Ghat",
     price: 18000,
     area: 1500,
-    furnished: "Semi",
+    furnished: "Semi-Furnished",
     city: "Nahan",
-    locality: "Prime Location",
-    address: "Another Address, Prime Location, Nahan",
+    locality: "Gunnu Ghat",
+    address: "Gunnu Ghat Bazar, Near Delhi Gate, Nahan",
+    coordinates: [30.5585, 77.2940],
     ownerName: "Kishan Gupta",
     ownerPhone: "+91 98170 54321",
     photos: [
@@ -94,13 +99,14 @@ const DUMMY_PROPERTIES: Property[] = [
   },
   {
     id: "prop-3",
-    title: "Modern 1BHK in Solan Heights",
+    title: "Modern 1BHK in Chambaghat",
     price: 12000,
     area: 800,
-    furnished: "No",
+    furnished: "No Furnished",
     city: "Solan",
-    locality: "Mall Road",
-    address: "Solan Heights, Mall Road, Solan",
+    locality: "Chambaghat",
+    address: "Near Mushroom City & NH, Chambaghat, Solan",
+    coordinates: [30.9230, 77.1080],
     ownerName: "Anjali Sharma",
     ownerPhone: "+91 98050 98765",
     photos: [
@@ -109,17 +115,18 @@ const DUMMY_PROPERTIES: Property[] = [
       "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
     ],
     type: "1 Room set",
-    description: "Newly constructed 1 room set right near Mall Road, Solan. Very convenient for working professionals or small family. High speed internet connectivity available.",
+    description: "Newly constructed 1 room set right near Chambaghat, Solan. Very convenient for working professionals or small family. High speed internet connectivity available.",
   },
   {
     id: "prop-4",
-    title: "Cozy Studio 1RK in Shimla Hills",
+    title: "Cozy Studio 1RK in Lakkar Bazaar",
     price: 9500,
     area: 550,
-    furnished: "Yes",
+    furnished: "Furnished",
     city: "Shimla",
     locality: "Lakkar Bazaar",
     address: "Near The Ridge & Lakkar Bazaar, Shimla",
+    coordinates: [31.1070, 77.1755],
     ownerName: "Rohit Verma",
     ownerPhone: "+91 98820 11223",
     photos: [
@@ -153,9 +160,21 @@ export default function HomePage() {
   // Navigation & Filter state
   const [selectedCity, setSelectedCity] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [budgetFilter, setBudgetFilter] = useState("all");
+  const [showSearchLocalityDropdown, setShowSearchLocalityDropdown] = useState(false);
+  const [panToCoordinate, setPanToCoordinate] = useState<[number, number] | null>(null);
+
+  // Popover state for interactive buttons
+  const [openPopover, setOpenPopover] = useState<"budget" | "type" | "furnishing" | null>(null);
+
+  // Filter values
   const [typeFilter, setTypeFilter] = useState("all");
   const [furnishingFilter, setFurnishingFilter] = useState("all");
+
+  // Budget slider state (Exact match to Roomster screenshot)
+  const [minBudget, setMinBudget] = useState(0);
+  const [maxBudget, setMaxBudget] = useState(25000);
+  const [isBudgetApplied, setIsBudgetApplied] = useState(false);
+
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
 
@@ -218,6 +237,7 @@ export default function HomePage() {
         type: (l.propertyType as any) || "1 Room set",
         description: l.description,
         status: l.status,
+        coordinates: parseValidCoordinates(l.coordinates, l.city, l.locality),
       }));
       setFirestoreProperties(formatted);
     });
@@ -318,9 +338,12 @@ export default function HomePage() {
       return false;
     }
     if (typeFilter !== "all" && prop.type !== typeFilter) return false;
-    if (budgetFilter === "under10k" && prop.price > 10000) return false;
-    if (budgetFilter === "10k-15k" && (prop.price < 10000 || prop.price > 15000)) return false;
-    if (budgetFilter === "15k-20k" && (prop.price < 15000 || prop.price > 20000)) return false;
+    
+    // Budget filter with slider values
+    if (isBudgetApplied) {
+      if (prop.price < minBudget || prop.price > maxBudget) return false;
+    }
+
     if (
       furnishingFilter === "no-furnished" &&
       (prop.furnished === "Yes" ||
@@ -391,6 +414,7 @@ export default function HomePage() {
               const cities = ["All", "Solan", "Nahan", "Shimla"];
               const nextIdx = (cities.indexOf(selectedCity) + 1) % cities.length;
               setSelectedCity(cities[nextIdx]);
+              setPanToCoordinate(null);
             }}
           >
             <MapPin size={16} className="text-primary" />
@@ -457,7 +481,10 @@ export default function HomePage() {
             <span>&gt;</span>
             <span
               style={{ cursor: "pointer" }}
-              onClick={() => setSelectedCity("All")}
+              onClick={() => {
+                setSelectedCity("All");
+                setPanToCoordinate(null);
+              }}
               title="View all Himachal Pradesh"
             >
               Himachal Pradesh
@@ -471,88 +498,330 @@ export default function HomePage() {
             Rooms for Rent in {selectedCity === "All" ? "Himachal Pradesh" : `${selectedCity}, HP`}
           </h1>
 
-          {/* Filter Bar Chips (Grid, Type, Budget, Furnishing, Search) */}
+          {/* Interactive Filter Bar (Grid, A Room, Budget Slider Popup, Furnishing, Locality Search) */}
           <div className="roomster-filters-bar">
-            <button className="filter-chip-pill active" title="Grid View">
+            {/* Grid Button */}
+            <button className="roomster-filter-btn active" title="Grid View">
               <LayoutGrid size={15} />
               <span>Grid</span>
             </button>
 
-            <select
-              className={`filter-chip-select ${typeFilter !== "all" ? "active" : ""}`}
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              title="Filter by Room Type"
-            >
-              <option value="all">Room Type (All)</option>
-              <option value="1 Room set">1 Room set</option>
-              <option value="2 Room set">2 Room set</option>
-              <option value="3 room set">3 Room set</option>
-            </select>
+            {/* Room Type Button with Animated Dropdown */}
+            <div className="filter-popover-anchor">
+              <button
+                type="button"
+                className={`roomster-filter-btn ${typeFilter !== "all" ? "active" : ""} ${openPopover === "type" ? "is-open" : ""}`}
+                onClick={() => setOpenPopover(openPopover === "type" ? null : "type")}
+                title="Select Room Type"
+              >
+                <span>{typeFilter === "all" ? "A room" : typeFilter}</span>
+                <ChevronDown
+                  size={14}
+                  style={{
+                    transform: openPopover === "type" ? "rotate(180deg)" : "none",
+                    transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                />
+                {typeFilter !== "all" && <span className="filter-active-dot" />}
+              </button>
 
-            <select
-              className={`filter-chip-select ${budgetFilter !== "all" ? "active" : ""}`}
-              value={budgetFilter}
-              onChange={(e) => setBudgetFilter(e.target.value)}
-              title="Filter by Monthly Budget"
-            >
-              <option value="all">Budget (All)</option>
-              <option value="under10k">Under ₹10,000</option>
-              <option value="10k-15k">₹10k - ₹15k</option>
-              <option value="15k-20k">₹15k - ₹20k</option>
-            </select>
+              {openPopover === "type" && (
+                <>
+                  <div className="popover-backdrop-layer" onClick={() => setOpenPopover(null)} />
+                  <div className="filter-dropdown-card">
+                    {[
+                      { label: "All Room Types", value: "all" },
+                      { label: "1 Room set", value: "1 Room set" },
+                      { label: "2 Room set", value: "2 Room set" },
+                      { label: "3 room set", value: "3 room set" },
+                    ].map((opt) => (
+                      <div
+                        key={opt.value}
+                        className={`filter-dropdown-item ${typeFilter === opt.value ? "selected" : ""}`}
+                        onClick={() => {
+                          setTypeFilter(opt.value);
+                          setOpenPopover(null);
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        {typeFilter === opt.value && <Check size={14} color="var(--primary)" />}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
-            <select
-              className={`filter-chip-select ${furnishingFilter !== "all" ? "active" : ""}`}
-              value={furnishingFilter}
-              onChange={(e) => setFurnishingFilter(e.target.value)}
-              title="Filter by Furnishing"
-            >
-              <option value="all">Furnishing (All)</option>
-              <option value="no-furnished">No Furnished</option>
-              <option value="semi">Semi-Furnished</option>
-              <option value="furnished">Furnished</option>
-            </select>
+            {/* Budget Button with Slider Popup (Exact match to screenshot) */}
+            <div className="filter-popover-anchor">
+              <button
+                type="button"
+                className={`roomster-filter-btn ${isBudgetApplied ? "active" : ""} ${openPopover === "budget" ? "is-open" : ""}`}
+                onClick={() => setOpenPopover(openPopover === "budget" ? null : "budget")}
+                title="Filter by Monthly Budget"
+              >
+                <span>
+                  {isBudgetApplied ? `₹${minBudget.toLocaleString()} - ₹${maxBudget.toLocaleString()}` : "Budget"}
+                </span>
+                <ChevronDown
+                  size={14}
+                  style={{
+                    transform: openPopover === "budget" ? "rotate(180deg)" : "none",
+                    transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                />
+                {isBudgetApplied && <span className="filter-active-dot" />}
+              </button>
 
-            <div className="filter-chip-search">
+              {openPopover === "budget" && (
+                <>
+                  <div className="popover-backdrop-layer" onClick={() => setOpenPopover(null)} />
+                  <div className="budget-popup-card">
+                    <div className="budget-popup-header">
+                      <span className="budget-popup-title">Select budget</span>
+                      <button
+                        type="button"
+                        className="budget-popup-close-btn"
+                        onClick={() => setOpenPopover(null)}
+                        title="Close budget popup"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Dual Inputs Row: Min and Max */}
+                    <div className="budget-inputs-row">
+                      <div className="budget-input-wrapper">
+                        <input
+                          type="number"
+                          className="budget-input-field"
+                          value={minBudget}
+                          onChange={(e) => setMinBudget(Math.max(0, Number(e.target.value)))}
+                          placeholder="0"
+                        />
+                      </div>
+                      <span className="budget-input-separator">–</span>
+                      <div className="budget-input-wrapper">
+                        <input
+                          type="number"
+                          className="budget-input-field"
+                          value={maxBudget}
+                          onChange={(e) => setMaxBudget(Number(e.target.value))}
+                          placeholder="5000"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Green Range Slider matching screenshot */}
+                    <div className="budget-slider-track-wrap">
+                      <input
+                        type="range"
+                        min="1000"
+                        max="35000"
+                        step="500"
+                        value={maxBudget}
+                        onChange={(e) => setMaxBudget(Number(e.target.value))}
+                        className="budget-range-slider"
+                      />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#94A3B8", marginTop: "4px" }}>
+                        <span>₹1k</span>
+                        <span>₹15k</span>
+                        <span>₹35k+</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Budget Chips */}
+                    <div className="budget-preset-chips">
+                      {[
+                        { label: "Under ₹5k", min: 0, max: 5000 },
+                        { label: "₹5k - ₹10k", min: 5000, max: 10000 },
+                        { label: "₹10k - ₹15k", min: 10000, max: 15000 },
+                        { label: "₹15k - ₹25k", min: 15000, max: 25000 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          className={`budget-preset-btn ${minBudget === preset.min && maxBudget === preset.max ? "selected" : ""}`}
+                          onClick={() => {
+                            setMinBudget(preset.min);
+                            setMaxBudget(preset.max);
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Footer: Clear and Show results */}
+                    <div className="budget-popup-footer">
+                      <button
+                        type="button"
+                        className="budget-clear-btn"
+                        onClick={() => {
+                          setMinBudget(0);
+                          setMaxBudget(25000);
+                          setIsBudgetApplied(false);
+                          setOpenPopover(null);
+                        }}
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        className="budget-show-results-btn"
+                        onClick={() => {
+                          setIsBudgetApplied(true);
+                          setOpenPopover(null);
+                        }}
+                      >
+                        Show results
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Furnishing Button with Animated Dropdown */}
+            <div className="filter-popover-anchor">
+              <button
+                type="button"
+                className={`roomster-filter-btn ${furnishingFilter !== "all" ? "active" : ""} ${openPopover === "furnishing" ? "is-open" : ""}`}
+                onClick={() => setOpenPopover(openPopover === "furnishing" ? null : "furnishing")}
+                title="Filter by Furnishing"
+              >
+                <span>
+                  {furnishingFilter === "all"
+                    ? "Furnishing"
+                    : furnishingFilter === "no-furnished"
+                    ? "No Furnished"
+                    : furnishingFilter === "semi"
+                    ? "Semi-Furnished"
+                    : "Furnished"}
+                </span>
+                <ChevronDown
+                  size={14}
+                  style={{
+                    transform: openPopover === "furnishing" ? "rotate(180deg)" : "none",
+                    transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                />
+                {furnishingFilter !== "all" && <span className="filter-active-dot" />}
+              </button>
+
+              {openPopover === "furnishing" && (
+                <>
+                  <div className="popover-backdrop-layer" onClick={() => setOpenPopover(null)} />
+                  <div className="filter-dropdown-card">
+                    {[
+                      { label: "All Furnishing", value: "all" },
+                      { label: "No Furnished (Default)", value: "no-furnished" },
+                      { label: "Semi-Furnished", value: "semi" },
+                      { label: "Furnished", value: "furnished" },
+                    ].map((opt) => (
+                      <div
+                        key={opt.value}
+                        className={`filter-dropdown-item ${furnishingFilter === opt.value ? "selected" : ""}`}
+                        onClick={() => {
+                          setFurnishingFilter(opt.value);
+                          setOpenPopover(null);
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        {furnishingFilter === opt.value && <Check size={14} color="var(--primary)" />}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Locality Search with Autocomplete Dropdown & Map Fly */}
+            <div className="filter-search-box">
               <Search size={14} color="#64748B" />
               <input
                 type="text"
-                placeholder="Search area, locality..."
+                placeholder="Search area (e.g. Ranital)..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  setShowSearchLocalityDropdown(val.trim().length > 0);
+                  const match = getCoordinatesForLocality(val, selectedCity);
+                  if (match) setPanToCoordinate(match);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length > 0) setShowSearchLocalityDropdown(true);
+                }}
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowSearchLocalityDropdown(false);
+                    setPanToCoordinate(null);
+                  }}
                   style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
                   title="Clear search"
                 >
                   <X size={12} color="#94A3B8" />
                 </button>
               )}
+
+              {/* Autocomplete Dropdown */}
+              {showSearchLocalityDropdown && (
+                <>
+                  <div className="popover-backdrop-layer" onClick={() => setShowSearchLocalityDropdown(false)} />
+                  <div className="search-locality-dropdown">
+                    <div style={{ padding: "6px 10px", fontSize: "0.72rem", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      Suggested Localities & Landmark Pins
+                    </div>
+                    {searchLocalities(searchQuery, selectedCity).slice(0, 7).map((loc) => (
+                      <div
+                        key={loc.id}
+                        className="search-locality-item"
+                        onClick={() => {
+                          setSearchQuery(loc.name);
+                          setSelectedCity(loc.city);
+                          setPanToCoordinate(loc.coordinates);
+                          setShowSearchLocalityDropdown(false);
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "#FFF7ED",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <MapPin size={13} color="var(--primary)" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "#191E24" }}>
+                            {loc.name}, <span style={{ color: "#64748B", fontWeight: 500 }}>{loc.city}</span>
+                          </div>
+                          <div style={{ fontSize: "0.72rem", color: "#94A3B8" }}>
+                            {loc.category} • Fly map here
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Subheader: Listing count & Add listing button */}
+          {/* Subheader: Listing count */}
           <div className="rooms-subhead-row">
             <div className="rooms-count-label">
               {filteredProperties.length} Rooms For Rent
             </div>
-
-            <button
-              className="btn-add-listing-inline"
-              onClick={() => {
-                if (!user) {
-                  handleOpenAuth();
-                } else {
-                  setIsOwnerDashboardOpen(true);
-                }
-              }}
-            >
-              <PlusCircle size={15} />
-              <span>+ Add listing</span>
-            </button>
           </div>
 
           {/* Cards Grid (scrolls independently) */}
@@ -717,8 +986,11 @@ export default function HomePage() {
                   setSelectedCity("All");
                   setSearchQuery("");
                   setTypeFilter("all");
-                  setBudgetFilter("all");
+                  setIsBudgetApplied(false);
+                  setMinBudget(0);
+                  setMaxBudget(25000);
                   setFurnishingFilter("all");
+                  setPanToCoordinate(null);
                 }}
               >
                 Reset All Filters
@@ -739,6 +1011,7 @@ export default function HomePage() {
             selectedCity={selectedCity}
             selectedProperty={selectedPropertyForDetail}
             hoveredPropertyId={hoveredPropertyId}
+            panToCoordinate={panToCoordinate}
             onSelectProperty={(p) => setSelectedPropertyForDetail(p as Property)}
           />
         </section>
