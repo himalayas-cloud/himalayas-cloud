@@ -1,0 +1,397 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import {
+  X,
+  Phone,
+  MessageCircle,
+  MapPin,
+  Home,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  Maximize2,
+  Sparkles,
+} from "lucide-react";
+
+export interface PropertyDetail {
+  id: string;
+  title: string;
+  price: number;
+  area?: number;
+  furnished?: "Yes" | "No" | "Semi" | string;
+  city: "Solan" | "Nahan" | "Shimla" | string;
+  locality: string;
+  address?: string;
+  ownerName: string;
+  ownerPhone: string;
+  photos: string[];
+  type?: string;
+  description?: string;
+  status?: string;
+}
+
+interface PropertyDetailModalProps {
+  property: PropertyDetail | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function PropertyDetailModal({
+  property,
+  isOpen,
+  onClose,
+}: PropertyDetailModalProps) {
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
+
+  // Reset photo index when a new property is opened
+  useEffect(() => {
+    if (isOpen) {
+      setActivePhotoIdx(0);
+      setIsFullScreenPhoto(false);
+      // Lock body scroll on mobile for native app feel
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, property]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isFullScreenPhoto) {
+          setIsFullScreenPhoto(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isFullScreenPhoto, onClose]);
+
+  if (!isOpen || !property) return null;
+
+  const photos =
+    property.photos && property.photos.length > 0
+      ? property.photos
+      : ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"];
+
+  const handlePrevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActivePhotoIdx((prev) => (prev === 0 ? photos.length - 1 : prev - 1));
+  };
+
+  const handleNextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActivePhotoIdx((prev) => (prev === photos.length - 1 ? 0 : prev + 1));
+  };
+
+  const cleanPhone = property.ownerPhone.replace(/[^0-9]/g, "");
+  const whatsappUrl = `https://wa.me/${cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`}?text=Hi%20${encodeURIComponent(
+    property.ownerName
+  )},%20I%20saw%20your%20listing%20"${encodeURIComponent(
+    property.title
+  )}"%20on%20Rent%20Himalayas%20and%20would%20like%20to%20know%20more%20details%20or%20visit.`;
+
+  // Format furnishing label
+  const getFurnishingLabel = (f?: string) => {
+    if (f === "Yes" || f === "Furnished") return "Furnished";
+    if (f === "Semi" || f === "Semi-Furnished") return "Semi-Furnished";
+    return "No Furnished";
+  };
+
+  return (
+    <>
+      <div className="property-modal-overlay animate-fade-in" onClick={onClose}>
+        <div
+          className="property-modal-sheet animate-slide-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Mobile Swipe / Drag Indicator Bar */}
+          <div className="mobile-sheet-drag-handle" />
+
+          {/* Floating Close Button */}
+          <button
+            className="property-modal-close"
+            onClick={onClose}
+            aria-label="Close details"
+          >
+            <X size={20} />
+          </button>
+
+          {/* 1. PHOTO GALLERY / CAROUSEL */}
+          <div className="detail-gallery-container">
+            {/* Tapping photo opens Fullscreen view for 720x1080 / any aspect ratio */}
+            <div
+              className="detail-active-photo-wrapper"
+              onClick={() => setIsFullScreenPhoto(true)}
+              style={{ cursor: "zoom-in" }}
+              title="Click to view full photo in 100% resolution"
+            >
+              <Image
+                src={photos[activePhotoIdx]}
+                alt={`${property.title} - Photo ${activePhotoIdx + 1}`}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 720px"
+                className="detail-active-photo"
+                unoptimized
+              />
+
+              {/* Badges on Image */}
+              <div className="detail-photo-badges">
+                <span className="detail-city-badge">
+                  <MapPin size={13} style={{ display: "inline", verticalAlign: "-2px" }} />
+                  {property.city}
+                </span>
+                <span className="detail-type-badge">
+                  {property.type || "Room Set"}
+                </span>
+              </div>
+
+              {/* Tap to view full photo hint */}
+              <div className="detail-fullscreen-hint">
+                <Maximize2 size={13} />
+                <span>Full Photo (720x1080)</span>
+              </div>
+
+              {/* Photo Counter */}
+              {photos.length > 1 && (
+                <div className="detail-photo-counter">
+                  📷 {activePhotoIdx + 1} / {photos.length}
+                </div>
+              )}
+
+              {/* Navigation Arrows for multi-photo */}
+              {photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="detail-photo-nav-btn prev"
+                    onClick={handlePrevPhoto}
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    className="detail-photo-nav-btn next"
+                    onClick={handleNextPhoto}
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnail Strip */}
+            {photos.length > 1 && (
+              <div className="detail-thumbnail-strip">
+                {photos.map((photo, idx) => (
+                  <div
+                    key={idx}
+                    className={`detail-thumb ${idx === activePhotoIdx ? "active" : ""}`}
+                    onClick={() => setActivePhotoIdx(idx)}
+                  >
+                    <Image
+                      src={photo}
+                      alt={`Thumbnail ${idx + 1}`}
+                      fill
+                      sizes="72px"
+                      className="detail-thumb-img"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. PROPERTY DETAILS CONTENT */}
+          <div className="detail-content-body">
+            {/* Rent & Title Header */}
+            <div className="detail-header-row">
+              <div>
+                <div className="detail-rent-tag">
+                  <span className="rent-currency">₹</span>
+                  <span className="rent-amount">
+                    {property.price.toLocaleString("en-IN")}
+                  </span>
+                  <span className="rent-period">/ month</span>
+                </div>
+                <h1 className="detail-title">{property.title}</h1>
+              </div>
+            </div>
+
+            {/* Location Bar */}
+            <div className="detail-location-bar">
+              <MapPin size={17} className="text-primary flex-shrink-0" />
+              <span>
+                {property.address || `${property.locality}, ${property.city}, Himachal Pradesh`}
+              </span>
+            </div>
+
+            {/* Quick Highlights Grid (Carpet area removed per request) */}
+            <div className="detail-highlights-grid">
+              <div className="highlight-card">
+                <span className="highlight-label">Property Type</span>
+                <span className="highlight-value">{property.type || "Room Set"}</span>
+              </div>
+
+              <div className="highlight-card">
+                <span className="highlight-label">Furnishing</span>
+                <span className="highlight-value">
+                  {getFurnishingLabel(property.furnished)}
+                </span>
+              </div>
+
+              <div className="highlight-card" style={{ gridColumn: "span 2" }}>
+                <span className="highlight-label">Status</span>
+                <span className="highlight-value status-available">
+                  <CheckCircle2 size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> Ready to Move in {property.city}
+                </span>
+              </div>
+            </div>
+
+          {/* Description Section */}
+          <div className="detail-section">
+            <h3 className="detail-section-title">
+              <Sparkles size={16} className="text-primary" />
+              <span>About this Room</span>
+            </h3>
+            <p className="detail-description">
+              {property.description ||
+                `Spacious and peaceful ${property.type || "room set"} situated in ${
+                  property.locality
+                }, ${property.city}. Surrounded by refreshing Himalayan views, clean water supply, and easy connectivity to local transport.`}
+            </p>
+          </div>
+
+          {/* Owner Info Card */}
+          <div className="detail-owner-card">
+            <div className="detail-owner-avatar">
+              {property.ownerName.charAt(0).toUpperCase()}
+            </div>
+            <div className="detail-owner-meta">
+              <div className="detail-owner-name-row">
+                <span className="detail-owner-name">{property.ownerName}</span>
+                <span className="detail-verified-badge">
+                  <ShieldCheck size={13} /> Verified Host
+                </span>
+              </div>
+              <span className="detail-owner-phone-sub">
+                📞 {property.ownerPhone}
+              </span>
+            </div>
+          </div>
+
+          {/* Space for fixed bottom bar on mobile */}
+          <div className="mobile-action-spacer" />
+        </div>
+
+        {/* 3. STICKY CALL & WHATSAPP ACTION BAR (Optimized for Mobile) */}
+        <div className="detail-sticky-action-bar">
+          <div className="action-bar-rent-summary">
+            <span className="action-rent-label">Monthly Rent</span>
+            <span className="action-rent-val">₹{property.price.toLocaleString("en-IN")}</span>
+          </div>
+
+          <div className="action-bar-buttons">
+            {/* Direct Phone Call */}
+            <a
+              href={`tel:${property.ownerPhone}`}
+              className="btn-modal-call"
+            >
+              <Phone size={18} />
+              <span>Call Owner</span>
+            </a>
+
+            {/* Direct WhatsApp Chat */}
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-modal-whatsapp"
+            >
+              <MessageCircle size={18} />
+              <span>WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* FULL SCREEN LIGHTBOX (Displays 720x1080p and any portrait photos at 100% full height with zero cropping) */}
+    {isFullScreenPhoto && (
+      <div
+        className="photo-lightbox-overlay animate-fade-in"
+        onClick={() => setIsFullScreenPhoto(false)}
+      >
+        <button
+          className="lightbox-close-btn"
+          onClick={() => setIsFullScreenPhoto(false)}
+          aria-label="Close full view"
+        >
+          <X size={26} />
+        </button>
+
+        <div className="lightbox-header-info">
+          <span className="lightbox-title">{property.title}</span>
+          <span className="lightbox-counter">
+            📷 {activePhotoIdx + 1} of {photos.length}
+          </span>
+        </div>
+
+        {/* The 720x1080 full image container */}
+        <div
+          className="lightbox-img-wrapper"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Image
+            src={photos[activePhotoIdx]}
+            alt={`${property.title} - Full Screen View`}
+            fill
+            sizes="100vw"
+            className="lightbox-img-full"
+            priority
+            unoptimized
+          />
+        </div>
+
+        {/* Fullscreen Navigation */}
+        {photos.length > 1 && (
+          <>
+            <button
+              type="button"
+              className="lightbox-nav-btn prev"
+              onClick={handlePrevPhoto}
+              aria-label="Previous photo"
+            >
+              <ChevronLeft size={32} />
+            </button>
+            <button
+              type="button"
+              className="lightbox-nav-btn next"
+              onClick={handleNextPhoto}
+              aria-label="Next photo"
+            >
+              <ChevronRight size={32} />
+            </button>
+          </>
+        )}
+      </div>
+    )}
+  </>
+  );
+}

@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: "Rent Himalayas | Rooms, Flats & PGs for Rent in Nahan, Solan, Shimla",
   description:
     "Find verified rental homes, 1BHK/2BHK flats, and rooms in Himachal Pradesh across Nahan, Solan, and Shimla with direct owner contact.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -16,8 +21,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossOrigin=""
+        />
       </head>
       <body>
         <AuthProvider>{children}</AuthProvider>

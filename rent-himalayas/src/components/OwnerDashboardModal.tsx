@@ -61,6 +61,7 @@ export default function OwnerDashboardModal({
   const [city, setCity] = useState<"Solan" | "Nahan" | "Shimla">("Solan");
   const [locationDetails, setLocationDetails] = useState("");
   const [propertyType, setPropertyType] = useState<"1 Room set" | "2 Room set" | "3 room set">("1 Room set");
+  const [furnished, setFurnished] = useState<"No" | "Semi" | "Yes">("No");
   const [price, setPrice] = useState<number | "">("");
   
   // Multiple Photo Upload State
@@ -230,7 +231,7 @@ export default function OwnerDashboardModal({
         city,
         locality: locationDetails.trim(),
         addressApprox: `${locationDetails.trim()}, ${city}`,
-        furnished: "Yes",
+        furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
         photos: photoUrls,
         status: "published",
       });
@@ -240,6 +241,7 @@ export default function OwnerDashboardModal({
       // Reset form
       setLocationDetails("");
       setPrice("");
+      setFurnished("No");
       setSelectedPhotos([]);
       
       // Switch to listings tab after a brief delay
@@ -482,12 +484,47 @@ service cloud.firestore {
                 />
               </div>
 
-              {/* Field 6: Multi-Photo Upload from Phone or PC */}
+              {/* Field: Furnishing Status (Default: No Furnished) */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Home size={15} color="var(--primary)" />
+                  <span>6. Furnishing Status *</span>
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                  {[
+                    { label: "No Furnished", value: "No" },
+                    { label: "Semi-Furnished", value: "Semi" },
+                    { label: "Furnished", value: "Yes" },
+                  ].map((fOption) => (
+                    <button
+                      key={fOption.value}
+                      type="button"
+                      onClick={() => setFurnished(fOption.value as "No" | "Semi" | "Yes")}
+                      style={{
+                        padding: "11px 6px",
+                        borderRadius: "10px",
+                        border: furnished === fOption.value ? "2px solid var(--primary)" : "1px solid var(--border-color)",
+                        background: furnished === fOption.value ? "var(--primary-light)" : "#FFFFFF",
+                        color: furnished === fOption.value ? "var(--primary)" : "var(--text-main)",
+                        fontWeight: 700,
+                        fontSize: "0.86rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        textAlign: "center",
+                      }}
+                    >
+                      {fOption.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Field 7: Multi-Photo Upload from Phone or PC */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <ImageIcon size={15} color="var(--primary)" />
-                    <span>6. Property Photos (Upload several photos from phone or PC)</span>
+                    <span>7. Property Photos (Upload several photos from phone or PC)</span>
                   </span>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 500 }}>
                     {selectedPhotos.length} photo{selectedPhotos.length === 1 ? "" : "s"} selected

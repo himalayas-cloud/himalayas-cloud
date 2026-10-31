@@ -32,7 +32,7 @@ export interface PropertyListing {
   addressApprox: string;
   areaSqft?: number;
   bedrooms?: number;
-  furnished: "Yes" | "No" | "Semi";
+  furnished: "Yes" | "No" | "Semi" | "Furnished" | "Semi-Furnished" | "No Furnished" | string;
   photos: string[];
   status: ListingStatus;
   createdAt?: Timestamp;

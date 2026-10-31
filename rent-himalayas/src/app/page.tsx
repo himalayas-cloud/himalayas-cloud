@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/context/AuthContext";
 import {
   MapPin,
@@ -13,28 +14,42 @@ import {
   ShieldAlert,
   LogOut,
   ChevronDown,
-  Building2,
   CheckCircle,
   MessageCircle,
   PlusCircle,
+  Home,
+  LayoutGrid,
+  Map as MapIcon,
+  List as ListIcon,
 } from "lucide-react";
 import { ConfirmationResult } from "firebase/auth";
 import OwnerDashboardModal from "@/components/OwnerDashboardModal";
+import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
 import { subscribePublishedProperties } from "@/lib/properties";
 
-interface Property {
-  id: string;
-  title: string;
-  price: number;
-  area: number;
-  furnished: "Yes" | "No" | "Semi";
-  city: "Solan" | "Nahan" | "Shimla";
-  locality: string;
-  address: string;
-  ownerName: string;
-  ownerPhone: string;
-  imageUrl: string;
-  type: "flat" | "room" | "pg";
+// Dynamic import of Leaflet PropertyMap for SSR safety
+const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F1F5F9",
+        color: "#64748B",
+        fontWeight: 600,
+        fontSize: "0.95rem",
+      }}
+    >
+      <span>🗺️ Loading Himalayan Map...</span>
+    </div>
+  ),
+});
+
+export interface Property extends PropertyDetail {
+  area?: number;
 }
 
 const DUMMY_PROPERTIES: Property[] = [
@@ -49,8 +64,14 @@ const DUMMY_PROPERTIES: Property[] = [
     address: "Complete Address, Near Landmark, Nahan",
     ownerName: "Vishal Kumar",
     ownerPhone: "+91 98160 12345",
-    imageUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-    type: "flat",
+    photos: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "2 Room set",
+    description: "Spacious 2BHK room set with natural mountain light, wide balcony, modern kitchen setup, and 24-hour clean water supply. Walking distance from main market.",
   },
   {
     id: "prop-2",
@@ -63,8 +84,13 @@ const DUMMY_PROPERTIES: Property[] = [
     address: "Another Address, Prime Location, Nahan",
     ownerName: "Kishan Gupta",
     ownerPhone: "+91 98170 54321",
-    imageUrl: "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80",
-    type: "flat",
+    photos: [
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "2 Room set",
+    description: "Premium independent room set in a peaceful neighborhood. Separate entrance, car parking space, geyser installed, and scenic views of the Shivalik hills.",
   },
   {
     id: "prop-3",
@@ -77,8 +103,13 @@ const DUMMY_PROPERTIES: Property[] = [
     address: "Solan Heights, Mall Road, Solan",
     ownerName: "Anjali Sharma",
     ownerPhone: "+91 98050 98765",
-    imageUrl: "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
-    type: "flat",
+    photos: [
+      "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "1 Room set",
+    description: "Newly constructed 1 room set right near Mall Road, Solan. Very convenient for working professionals or small family. High speed internet connectivity available.",
   },
   {
     id: "prop-4",
@@ -91,8 +122,13 @@ const DUMMY_PROPERTIES: Property[] = [
     address: "Near The Ridge & Lakkar Bazaar, Shimla",
     ownerName: "Rohit Verma",
     ownerPhone: "+91 98820 11223",
-    imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
-    type: "room",
+    photos: [
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "1 Room set",
+    description: "Warm wooden-finished studio room set overlooking pine valleys. 10 minutes walk from The Ridge. Fully furnished with bed, wardrobe, heater, and geyser.",
   },
 ];
 
@@ -116,11 +152,12 @@ export default function HomePage() {
 
   // Navigation & Filter state
   const [selectedCity, setSelectedCity] = useState<string>("All");
-  const [rentOrBuy, setRentOrBuy] = useState<"Rent" | "Buy">("Rent");
   const [searchQuery, setSearchQuery] = useState("");
-  const [roomFilter, setRoomFilter] = useState("all");
   const [budgetFilter, setBudgetFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [furnishingFilter, setFurnishingFilter] = useState("all");
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
 
   // Modals state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -128,7 +165,7 @@ export default function HomePage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isOwnerDashboardOpen, setIsOwnerDashboardOpen] = useState(false);
-  const [selectedPropertyForContact, setSelectedPropertyForContact] = useState<Property | null>(null);
+  const [selectedPropertyForDetail, setSelectedPropertyForDetail] = useState<Property | null>(null);
   const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
 
   // Email form state
@@ -166,16 +203,21 @@ export default function HomePage() {
         title: l.title,
         price: l.monthlyRent,
         area: l.areaSqft || 900,
-        furnished: l.furnished,
+        furnished: l.furnished || "No Furnished",
         city: (l.city as "Solan" | "Nahan" | "Shimla") || "Solan",
         locality: l.locality,
         address: l.addressApprox || `${l.locality}, ${l.city}`,
         ownerName: l.ownerName,
         ownerPhone: l.ownerPhone,
-        imageUrl:
-          l.photos?.[0] ||
-          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        photos:
+          l.photos && l.photos.length > 0
+            ? l.photos
+            : [
+                "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+              ],
         type: (l.propertyType as any) || "1 Room set",
+        description: l.description,
+        status: l.status,
       }));
       setFirestoreProperties(formatted);
     });
@@ -271,7 +313,7 @@ export default function HomePage() {
     if (
       searchQuery &&
       !prop.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !prop.address.toLowerCase().includes(searchQuery.toLowerCase())
+      !(prop.address || prop.locality || "").toLowerCase().includes(searchQuery.toLowerCase())
     ) {
       return false;
     }
@@ -279,6 +321,29 @@ export default function HomePage() {
     if (budgetFilter === "under10k" && prop.price > 10000) return false;
     if (budgetFilter === "10k-15k" && (prop.price < 10000 || prop.price > 15000)) return false;
     if (budgetFilter === "15k-20k" && (prop.price < 15000 || prop.price > 20000)) return false;
+    if (
+      furnishingFilter === "no-furnished" &&
+      (prop.furnished === "Yes" ||
+        prop.furnished === "Furnished" ||
+        prop.furnished === "Semi" ||
+        prop.furnished === "Semi-Furnished")
+    ) {
+      return false;
+    }
+    if (
+      furnishingFilter === "semi" &&
+      prop.furnished !== "Semi" &&
+      prop.furnished !== "Semi-Furnished"
+    ) {
+      return false;
+    }
+    if (
+      furnishingFilter === "furnished" &&
+      prop.furnished !== "Yes" &&
+      prop.furnished !== "Furnished"
+    ) {
+      return false;
+    }
     return true;
   });
 
@@ -287,22 +352,47 @@ export default function HomePage() {
       {/* Invisible reCAPTCHA container for Phone Auth */}
       <div id="recaptcha-container"></div>
 
-      {/* 1. Header */}
+      {/* 1. Header with updated Logo */}
       <header className="app-header">
         <div className="logo-group">
-          <a href="#" className="brand-logo">
-            <span className="brand-icon">
-              <Building2 size={26} strokeWidth={2.4} />
+          <a
+            href="#"
+            className="brand-logo"
+            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "10px" }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Rent Himalayas Logo"
+                width={36}
+                height={36}
+                style={{ objectFit: "contain" }}
+                priority
+              />
+            </div>
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#191E24", letterSpacing: "-0.02em" }}>
+              Rent<span style={{ color: "var(--primary)" }}>Himalayas</span>
             </span>
-            <span>RentHimalayas</span>
           </a>
 
           {/* City Switcher Pill */}
-          <div className="location-pill" onClick={() => {
-            const cities = ["All", "Solan", "Nahan", "Shimla"];
-            const nextIdx = (cities.indexOf(selectedCity) + 1) % cities.length;
-            setSelectedCity(cities[nextIdx]);
-          }}>
+          <div
+            className="location-pill"
+            onClick={() => {
+              const cities = ["All", "Solan", "Nahan", "Shimla"];
+              const nextIdx = (cities.indexOf(selectedCity) + 1) % cities.length;
+              setSelectedCity(cities[nextIdx]);
+            }}
+          >
             <MapPin size={16} className="text-primary" />
             <span>{selectedCity === "All" ? "Himachal (All)" : selectedCity}</span>
             <ChevronDown size={14} />
@@ -327,7 +417,9 @@ export default function HomePage() {
           </button>
 
           {loading ? (
-            <span className="text-muted" style={{ fontSize: "0.85rem" }}>Loading...</span>
+            <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+              Loading...
+            </span>
           ) : user ? (
             <div
               className="user-badge-pill"
@@ -354,135 +446,321 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* 2. Hero Card Section */}
-      <section className="hero-card">
-        {/* Buy / Rent pill toggle */}
-        <div className="toggle-group">
-          <button
-            className={`toggle-btn ${rentOrBuy === "Buy" ? "active" : ""}`}
-            onClick={() => setRentOrBuy("Buy")}
-          >
-            Buy
-          </button>
-          <button
-            className={`toggle-btn ${rentOrBuy === "Rent" ? "active" : ""}`}
-            onClick={() => setRentOrBuy("Rent")}
-          >
-            Rent
-          </button>
-        </div>
+      {/* 2. Roomster-Style Split-Screen Marketplace Layout */}
+      {/* On desktop: Left listings scroll independently; right Map stays completely fixed */}
+      <main className="split-marketplace-layout">
+        {/* Left Scrollable Listings Pane */}
+        <section className={`split-left-pane ${mobileView === "map" ? "hidden-on-mobile" : ""}`}>
+          {/* Breadcrumbs */}
+          <nav className="roomster-breadcrumb" aria-label="Breadcrumb">
+            <Home size={15} />
+            <span>&gt;</span>
+            <span
+              style={{ cursor: "pointer" }}
+              onClick={() => setSelectedCity("All")}
+              title="View all Himachal Pradesh"
+            >
+              Himachal Pradesh
+            </span>
+            <span>&gt;</span>
+            <span>{selectedCity === "All" ? "All Cities" : selectedCity}</span>
+          </nav>
 
-        {/* Filter bar */}
-        <div className="filter-bar">
-          <div className="filter-input-group">
-            <span className="city-badge">{selectedCity === "All" ? "Nahan" : selectedCity}</span>
-            <input
-              type="text"
-              placeholder="Add Something..."
-              className="search-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* Heading */}
+          <h1 className="roomster-heading">
+            Rooms for Rent in {selectedCity === "All" ? "Himachal Pradesh" : `${selectedCity}, HP`}
+          </h1>
+
+          {/* Filter Bar Chips (Grid, Type, Budget, Furnishing, Search) */}
+          <div className="roomster-filters-bar">
+            <button className="filter-chip-pill active" title="Grid View">
+              <LayoutGrid size={15} />
+              <span>Grid</span>
+            </button>
+
+            <select
+              className={`filter-chip-select ${typeFilter !== "all" ? "active" : ""}`}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              title="Filter by Room Type"
+            >
+              <option value="all">Room Type (All)</option>
+              <option value="1 Room set">1 Room set</option>
+              <option value="2 Room set">2 Room set</option>
+              <option value="3 room set">3 Room set</option>
+            </select>
+
+            <select
+              className={`filter-chip-select ${budgetFilter !== "all" ? "active" : ""}`}
+              value={budgetFilter}
+              onChange={(e) => setBudgetFilter(e.target.value)}
+              title="Filter by Monthly Budget"
+            >
+              <option value="all">Budget (All)</option>
+              <option value="under10k">Under ₹10,000</option>
+              <option value="10k-15k">₹10k - ₹15k</option>
+              <option value="15k-20k">₹15k - ₹20k</option>
+            </select>
+
+            <select
+              className={`filter-chip-select ${furnishingFilter !== "all" ? "active" : ""}`}
+              value={furnishingFilter}
+              onChange={(e) => setFurnishingFilter(e.target.value)}
+              title="Filter by Furnishing"
+            >
+              <option value="all">Furnishing (All)</option>
+              <option value="no-furnished">No Furnished</option>
+              <option value="semi">Semi-Furnished</option>
+              <option value="furnished">Furnished</option>
+            </select>
+
+            <div className="filter-chip-search">
+              <Search size={14} color="#64748B" />
+              <input
+                type="text"
+                placeholder="Search area, locality..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  title="Clear search"
+                >
+                  <X size={12} color="#94A3B8" />
+                </button>
+              )}
+            </div>
           </div>
 
-          <select
-            className="filter-select"
-            value={roomFilter}
-            onChange={(e) => setRoomFilter(e.target.value)}
-          >
-            <option value="all">Rooms</option>
-            <option value="1rk">1 RK</option>
-            <option value="1bhk">1 BHK</option>
-            <option value="2bhk">2 BHK</option>
-            <option value="3bhk">3 BHK</option>
-          </select>
+          {/* Subheader: Listing count & Add listing button */}
+          <div className="rooms-subhead-row">
+            <div className="rooms-count-label">
+              {filteredProperties.length} Rooms For Rent
+            </div>
 
-          <select
-            className="filter-select"
-            value={budgetFilter}
-            onChange={(e) => setBudgetFilter(e.target.value)}
-          >
-            <option value="all">Budget</option>
-            <option value="under10k">Under ₹10,000</option>
-            <option value="10k-15k">₹10,000 - ₹15,000</option>
-            <option value="15k-20k">₹15,000 - ₹20,000</option>
-          </select>
+            <button
+              className="btn-add-listing-inline"
+              onClick={() => {
+                if (!user) {
+                  handleOpenAuth();
+                } else {
+                  setIsOwnerDashboardOpen(true);
+                }
+              }}
+            >
+              <PlusCircle size={15} />
+              <span>+ Add listing</span>
+            </button>
+          </div>
 
-          <select
-            className="filter-select"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="all">Type (All)</option>
-            <option value="1 Room set">1 Room Set</option>
-            <option value="2 Room set">2 Room Set</option>
-            <option value="3 room set">3 Room Set</option>
-          </select>
+          {/* Cards Grid (scrolls independently) */}
+          <div className="split-listings-grid">
+            {filteredProperties.map((property) => (
+              <div
+                key={property.id}
+                className="property-card"
+                onClick={() => setSelectedPropertyForDetail(property)}
+                onMouseEnter={() => setHoveredPropertyId(property.id)}
+                onMouseLeave={() => setHoveredPropertyId(null)}
+                style={{
+                  cursor: "pointer",
+                  borderColor: hoveredPropertyId === property.id ? "var(--primary)" : undefined,
+                  boxShadow:
+                    hoveredPropertyId === property.id
+                      ? "0 8px 24px rgba(242, 106, 27, 0.2)"
+                      : undefined,
+                }}
+              >
+                <div className="property-img-wrapper">
+                  <Image
+                    src={
+                      property.photos[0] ||
+                      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
+                    }
+                    alt={property.title}
+                    className="property-img"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 360px"
+                    style={{ objectFit: "cover" }}
+                    unoptimized
+                  />
+                  <span className="property-badge">{property.city}</span>
 
-          <button className="btn-search">
-            <Search size={18} />
-            <span>Search</span>
-          </button>
-        </div>
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      background: "#166534",
+                      color: "#FFFFFF",
+                      fontSize: "0.72rem",
+                      fontWeight: 800,
+                      padding: "3px 8px",
+                      borderRadius: "4px",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    NEW
+                  </span>
 
-        {/* Hero Tagline */}
-        <h1 className="hero-heading">Move In. Feel at Home</h1>
-      </section>
+                  {property.photos && property.photos.length > 1 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        right: "10px",
+                        background: "rgba(15, 23, 42, 0.75)",
+                        backdropFilter: "blur(4px)",
+                        color: "#FFFFFF",
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                        borderRadius: "999px",
+                      }}
+                    >
+                      📷 {property.photos.length}
+                    </span>
+                  )}
+                </div>
 
-      {/* 3. Property Grid Section */}
-      <section className="content-section">
-        <h2 className="section-title">Top Picks Just For You</h2>
-
-        <div className="listings-grid">
-          {filteredProperties.map((property) => (
-            <div key={property.id} className="property-card">
-              <div className="property-img-wrapper">
-                <Image
-                  src={property.imageUrl}
-                  alt={property.title}
-                  className="property-img"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 380px"
-                  style={{ objectFit: "cover" }}
-                  unoptimized
-                />
-                <span className="property-badge">{property.city}</span>
-              </div>
-
-              <div className="property-info">
-                <h3 className="property-title">{property.title}</h3>
-
-                <p className="property-details">
-                  Price: <strong>₹{property.price.toLocaleString("en-IN")}/month</strong> | Area:{" "}
-                  <strong>{property.area} sqft</strong> | Furnished: <strong>{property.furnished}</strong>
-                </p>
-
-                <p className="property-address">{property.address}</p>
-
-                <div className="property-footer">
-                  <div className="owner-info">
-                    <UserIcon size={16} />
-                    <span>{property.ownerName}</span>
+                <div className="property-info" style={{ padding: "14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        background: "#E2E8F0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.75rem",
+                        color: "#475569",
+                      }}
+                    >
+                      <UserIcon size={12} />
+                    </div>
+                    <span style={{ fontSize: "0.78rem", color: "#64748B", fontWeight: 600 }}>
+                      {property.ownerName}
+                    </span>
                   </div>
 
-                  <button
-                    className="btn-contact"
-                    onClick={() => setSelectedPropertyForContact(property)}
+                  <h3
+                    className="property-title"
+                    style={{
+                      fontSize: "1rem",
+                      marginBottom: "4px",
+                      color: hoveredPropertyId === property.id ? "var(--primary)" : undefined,
+                    }}
                   >
-                    Contact
-                  </button>
+                    {property.title}
+                  </h3>
+
+                  <p className="property-details" style={{ fontSize: "0.82rem", margin: "4px 0" }}>
+                    Price: <strong>₹{property.price.toLocaleString("en-IN")}/mo</strong> •{" "}
+                    <strong>
+                      {property.furnished === "Yes" || property.furnished === "Furnished"
+                        ? "Furnished"
+                        : property.furnished === "Semi" || property.furnished === "Semi-Furnished"
+                        ? "Semi-Furnished"
+                        : "No Furnished"}
+                    </strong>
+                  </p>
+
+                  <p className="property-address" style={{ fontSize: "0.78rem", marginBottom: "12px" }}>
+                    {property.locality ? `${property.locality}, ${property.city}` : property.address}
+                  </p>
+
+                  <div className="property-footer" style={{ paddingTop: "8px" }}>
+                    <span style={{ fontSize: "0.78rem", color: "var(--primary)", fontWeight: 700 }}>
+                      {property.type}
+                    </span>
+                    <button
+                      className="btn-contact"
+                      style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPropertyForDetail(property);
+                      }}
+                    >
+                      View & Call
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
 
-      {/* 4. Footer */}
-      <footer className="app-footer">
-        <p>© 2026 RentHimalayas. All rights reserved.</p>
-        <p>Your premium partner for finding homes in the Himalayas.</p>
-      </footer>
+          {filteredProperties.length === 0 && (
+            <div
+              style={{
+                padding: "40px 20px",
+                textAlign: "center",
+                background: "#ffffff",
+                borderRadius: "12px",
+                border: "1px dashed #CBD5E1",
+                margin: "20px 0",
+              }}
+            >
+              <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "#191E24", marginBottom: "6px" }}>
+                No rooms match your search filters in {selectedCity}
+              </p>
+              <p style={{ fontSize: "0.88rem", color: "#64748B", marginBottom: "16px" }}>
+                Try adjusting your budget or clearing room type filters.
+              </p>
+              <button
+                className="btn-secondary"
+                style={{ width: "auto", display: "inline-flex", margin: "0 auto" }}
+                onClick={() => {
+                  setSelectedCity("All");
+                  setSearchQuery("");
+                  setTypeFilter("all");
+                  setBudgetFilter("all");
+                  setFurnishingFilter("all");
+                }}
+              >
+                Reset All Filters
+              </button>
+            </div>
+          )}
+
+          {/* Bottom attribution/copyright inside left scroll */}
+          <div style={{ marginTop: "32px", padding: "16px 0", borderTop: "1px solid #E2E8F0", textAlign: "center", fontSize: "0.8rem", color: "#94A3B8" }}>
+            <p>© 2026 RentHimalayas • Solan • Nahan • Shimla</p>
+          </div>
+        </section>
+
+        {/* Right Fixed / Sticky Map Pane */}
+        <section className={`split-right-pane ${mobileView === "list" ? "hidden-on-mobile" : ""}`}>
+          <PropertyMap
+            properties={filteredProperties}
+            selectedCity={selectedCity}
+            selectedProperty={selectedPropertyForDetail}
+            hoveredPropertyId={hoveredPropertyId}
+            onSelectProperty={(p) => setSelectedPropertyForDetail(p as Property)}
+          />
+        </section>
+      </main>
+
+      {/* Mobile Floating Toggle (List vs Map) */}
+      <div className="mobile-view-toggle-bar">
+        <button
+          className={`mobile-view-toggle-btn ${mobileView === "list" ? "active" : ""}`}
+          onClick={() => setMobileView("list")}
+        >
+          <ListIcon size={16} />
+          <span>List ({filteredProperties.length})</span>
+        </button>
+        <button
+          className={`mobile-view-toggle-btn ${mobileView === "map" ? "active" : ""}`}
+          onClick={() => setMobileView("map")}
+        >
+          <MapIcon size={16} />
+          <span>Map</span>
+        </button>
+      </div>
 
       {/* AUTH MODAL */}
       {isAuthModalOpen && (
@@ -824,72 +1102,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* CONTACT OWNER MODAL */}
-      {selectedPropertyForContact && (
-        <div
-          className="modal-overlay animate-fade-in"
-          onClick={() => setSelectedPropertyForContact(null)}
-        >
-          <div
-            className="modal-dialog animate-slide-down"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "420px" }}
-          >
-            <button className="modal-close-btn" onClick={() => setSelectedPropertyForContact(null)}>
-              <X size={20} />
-            </button>
-
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "4px" }}>
-              Contact Property Owner
-            </h3>
-            <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "16px" }}>
-              {selectedPropertyForContact.title}
-            </p>
-
-            <div className="profile-card" style={{ marginBottom: "20px" }}>
-              <div className="profile-field-row">
-                <span className="profile-field-label">Owner</span>
-                <span className="profile-field-value">{selectedPropertyForContact.ownerName}</span>
-              </div>
-              <div className="profile-field-row">
-                <span className="profile-field-label">Location</span>
-                <span className="profile-field-value">{selectedPropertyForContact.city}</span>
-              </div>
-              <div className="profile-field-row">
-                <span className="profile-field-label">Monthly Rent</span>
-                <span className="profile-field-value">
-                  ₹{selectedPropertyForContact.price.toLocaleString("en-IN")}/mo
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <a
-                href={`tel:${selectedPropertyForContact.ownerPhone}`}
-                className="btn-primary"
-                style={{ textDecoration: "none" }}
-              >
-                <Phone size={18} />
-                <span>Call {selectedPropertyForContact.ownerPhone}</span>
-              </a>
-
-              <a
-                href={`https://wa.me/${selectedPropertyForContact.ownerPhone.replace(/[^0-9]/g, "")}?text=Hi%20${encodeURIComponent(
-                  selectedPropertyForContact.ownerName
-                )},%20I%20am%20interested%20in%20your%20rental%20listing:%20${encodeURIComponent(
-                  selectedPropertyForContact.title
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary"
-                style={{ textDecoration: "none", background: "#E8F5E9", color: "#1B5E20", borderColor: "#C8E6C9" }}
-              >
-                <MessageCircle size={18} />
-                <span>Chat on WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </div>
+      {/* RICH PROPERTY DETAIL MODAL / MOBILE BOTTOM SHEET */}
+      {selectedPropertyForDetail && (
+        <PropertyDetailModal
+          property={selectedPropertyForDetail}
+          isOpen={!!selectedPropertyForDetail}
+          onClose={() => setSelectedPropertyForDetail(null)}
+        />
       )}
       {/* OWNER DASHBOARD MODAL */}
       {isOwnerDashboardOpen && user && (
