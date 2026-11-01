@@ -16,6 +16,7 @@ import {
   Maximize2,
   Sparkles,
   Camera,
+  Share2,
 } from "lucide-react";
 
 const PropertyDetailMap = dynamic(() => import("./PropertyDetailMap"), {
@@ -71,12 +72,14 @@ export default function PropertyDetailModal({
 }: PropertyDetailModalProps) {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Reset photo index when a new property is opened
   useEffect(() => {
     if (isOpen) {
       setActivePhotoIdx(0);
       setIsFullScreenPhoto(false);
+      setCopiedLink(false);
       // Lock body scroll on mobile for native app feel
       document.body.style.overflow = "hidden";
     } else {
@@ -121,6 +124,31 @@ export default function PropertyDetailModal({
     setActivePhotoIdx((prev) => (prev === photos.length - 1 ? 0 : prev + 1));
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: property.title,
+          text: `Check out this room for rent in ${property.locality}, ${property.city} on Rent Himalayas: ₹${property.price.toLocaleString("en-IN")}/mo`,
+          url: currentUrl,
+        });
+        return;
+      } catch {
+        // Share cancelled or not supported
+      }
+    }
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(currentUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // Ignore
+    }
+  };
+
   const cleanPhone = property.ownerPhone.replace(/[^0-9]/g, "");
   const whatsappUrl = `https://wa.me/${cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`}?text=Hi%20${encodeURIComponent(
     property.ownerName
@@ -142,17 +170,48 @@ export default function PropertyDetailModal({
           className="property-modal-sheet animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Mobile Swipe / Drag Indicator Bar */}
-          <div className="mobile-sheet-drag-handle" />
+          {/* Elegant Top Navigation Bar (Back button, Share button, Close button) */}
+          <div className="property-modal-top-bar">
+            <button
+              type="button"
+              className="property-modal-nav-back-btn"
+              onClick={onClose}
+              aria-label="Back to listings"
+              title="Back"
+            >
+              <ChevronLeft size={20} />
+              <span>Back</span>
+            </button>
 
-          {/* Floating Close Button */}
-          <button
-            className="property-modal-close"
-            onClick={onClose}
-            aria-label="Close details"
-          >
-            <X size={20} />
-          </button>
+            <div className="property-modal-top-actions">
+              <button
+                type="button"
+                className="property-modal-action-circle-btn"
+                onClick={handleShare}
+                aria-label="Share property"
+                title={copiedLink ? "Link copied!" : "Share room"}
+              >
+                <Share2 size={17} />
+              </button>
+
+              <button
+                type="button"
+                className="property-modal-action-circle-btn"
+                onClick={onClose}
+                aria-label="Close details"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback Toast for copied link */}
+          {copiedLink && (
+            <div className="share-toast-pill animate-fade-in">
+              ✓ Link copied to clipboard!
+            </div>
+          )}
 
           {/* 1. PHOTO GALLERY / CAROUSEL */}
           <div className="detail-gallery-container">

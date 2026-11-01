@@ -97,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Please enter a valid email address.";
       case "auth/popup-closed-by-user":
         return "Sign-in popup was closed before completing.";
+      case "auth/unauthorized-domain":
+        return "This website domain is not authorized in Firebase Console. Please add your Vercel domain to Firebase Console -> Authentication -> Settings -> Authorized domains.";
       case "permission-denied":
         return "Permission denied by Firestore Security Rules.";
       default:

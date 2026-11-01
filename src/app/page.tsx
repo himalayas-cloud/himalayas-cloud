@@ -323,6 +323,28 @@ export default function HomePage() {
   const [selectedPropertyForDetail, setSelectedPropertyForDetail] = useState<Property | null>(null);
   const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
 
+  // Open property modal with URL history synchronization for native mobile back-button support
+  const handleOpenPropertyDetail = (property: Property) => {
+    setSelectedPropertyForDetail(property);
+    if (typeof window !== "undefined") {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("room", property.id);
+      window.history.pushState({ modal: "property", id: property.id }, "", currentUrl.toString());
+    }
+  };
+
+  const handleClosePropertyDetail = () => {
+    setSelectedPropertyForDetail(null);
+    if (typeof window !== "undefined") {
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.has("room") || currentUrl.searchParams.has("property")) {
+        currentUrl.searchParams.delete("room");
+        currentUrl.searchParams.delete("property");
+        window.history.replaceState({}, "", currentUrl.pathname + (currentUrl.search ? currentUrl.search : ""));
+      }
+    }
+  };
+
   // Email form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -457,6 +479,29 @@ export default function HomePage() {
       (dummy) => !firestoreProperties.some((fp) => fp.title === dummy.title)
     ),
   ];
+
+  // Listen for browser popstate (e.g. mobile back gesture or hardware back button)
+  useEffect(() => {
+    const handlePopState = () => {
+      setSelectedPropertyForDetail(null);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Deep-linking: auto-open property if ?room=id or ?property=id is in URL
+  useEffect(() => {
+    if (typeof window !== "undefined" && combinedProperties.length > 0 && !selectedPropertyForDetail) {
+      const params = new URLSearchParams(window.location.search);
+      const roomId = params.get("room") || params.get("property");
+      if (roomId) {
+        const found = combinedProperties.find((p) => p.id === roomId);
+        if (found) {
+          setSelectedPropertyForDetail(found);
+        }
+      }
+    }
+  }, [combinedProperties]);
 
   // Filter properties with two-tier District & Town matching
   const filteredProperties = combinedProperties.filter((prop) => {
@@ -993,7 +1038,7 @@ export default function HomePage() {
               <div
                 key={property.id}
                 className="property-card"
-                onClick={() => setSelectedPropertyForDetail(property)}
+                onClick={() => handleOpenPropertyDetail(property)}
                 onMouseEnter={() => setHoveredPropertyId(property.id)}
                 onMouseLeave={() => setHoveredPropertyId(null)}
                 style={{
@@ -1118,7 +1163,7 @@ export default function HomePage() {
                       style={{ padding: "6px 14px", fontSize: "0.8rem" }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedPropertyForDetail(property);
+                        handleOpenPropertyDetail(property);
                       }}
                     >
                       View & Call
@@ -1182,7 +1227,7 @@ export default function HomePage() {
             panToCoordinate={panToCoordinate}
             onSelectProperty={(p) => {
               setActiveMapPreview(null);
-              setSelectedPropertyForDetail(p as Property);
+              handleOpenPropertyDetail(p as Property);
             }}
             mobileView={mobileView}
             onActivePreviewChange={(p) => setActiveMapPreview(p as Property | null)}
@@ -1582,12 +1627,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* RICH PROPERTY DETAIL MODAL / MOBILE BOTTOM SHEET */}
+      {/* RICH PROPERTY DETAIL MODAL / MOBILE FULL-SCREEN VIEW */}
       {selectedPropertyForDetail && (
         <PropertyDetailModal
           property={selectedPropertyForDetail}
           isOpen={!!selectedPropertyForDetail}
-          onClose={() => setSelectedPropertyForDetail(null)}
+          onClose={handleClosePropertyDetail}
         />
       )}
       {/* OWNER DASHBOARD MODAL */}

@@ -224,7 +224,7 @@ export default function PropertyMap({
 
       {/* Floating Room Preview Card on Map (Replaces bug-prone Leaflet HTML popups) */}
       {activePreview && (
-        <div className="map-floating-preview-card animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="map-floating-preview-card" onClick={(e) => e.stopPropagation()}>
           <button
             className="map-preview-close-btn"
             onClick={(e) => {
