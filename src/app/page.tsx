@@ -1251,7 +1251,7 @@ export default function HomePage() {
               }}
             >
               <ListIcon size={16} />
-              <span>List ({filteredProperties.length})</span>
+              <span>List</span>
             </button>
             <button
               className={`mobile-view-toggle-btn ${mobileView === "map" ? "active" : ""}`}
@@ -1699,8 +1699,9 @@ export default function HomePage() {
                   setLocationSearchQuery("");
                 }}
                 style={{
-                  padding: "9px 12px",
-                  borderRadius: "8px",
+                  height: "46px",
+                  padding: "0 14px",
+                  borderRadius: "12px",
                   border: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "2px solid var(--primary)" : "1px solid #E2E8F0",
                   background: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "var(--primary-light)" : "#F8FAFC",
                   color: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "var(--primary)" : "#1E293B",
@@ -1711,9 +1712,10 @@ export default function HomePage() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   transition: "all 0.15s",
+                  boxSizing: "border-box",
                 }}
               >
-                <span>Nahan (Distt. Sirmaur)</span>
+                <span>Nahan (Sirmaur)</span>
                 {(selectedCity === "Nahan" || selectedCity === "Sirmaur") && <Check size={16} />}
               </button>
 
@@ -1726,8 +1728,9 @@ export default function HomePage() {
                   setLocationSearchQuery("");
                 }}
                 style={{
-                  padding: "9px 12px",
-                  borderRadius: "8px",
+                  height: "46px",
+                  padding: "0 14px",
+                  borderRadius: "12px",
                   border: selectedCity === "All" ? "2px solid var(--primary)" : "1px solid #E2E8F0",
                   background: selectedCity === "All" ? "var(--primary-light)" : "#F8FAFC",
                   color: selectedCity === "All" ? "var(--primary)" : "#1E293B",
@@ -1738,6 +1741,7 @@ export default function HomePage() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   transition: "all 0.15s",
+                  boxSizing: "border-box",
                 }}
               >
                 <span>All Himachal</span>
@@ -1801,16 +1805,21 @@ export default function HomePage() {
                       type="button"
                       onClick={() => setLocationModalTab(distName)}
                       style={{
-                        padding: "6px 12px",
-                        borderRadius: "20px",
+                        height: "36px",
+                        padding: "0 16px",
+                        borderRadius: "999px",
                         border: locationModalTab === distName ? "1.5px solid var(--primary)" : "1px solid #E2E8F0",
                         background: locationModalTab === distName ? "var(--primary-light)" : "#FFFFFF",
                         color: locationModalTab === distName ? "var(--primary)" : "#475569",
                         fontWeight: 700,
-                        fontSize: "0.8rem",
+                        fontSize: "0.82rem",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         transition: "all 0.15s",
+                        boxSizing: "border-box",
                       }}
                     >
                       {distName}
@@ -1830,19 +1839,21 @@ export default function HomePage() {
                     }}
                     style={{
                       width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: "10px",
+                      height: "46px",
+                      padding: "0 14px",
+                      borderRadius: "12px",
                       border: "1px solid #E2E8F0",
                       background: "#F8FAFC",
                       color: "#0F172A",
-                      fontWeight: 600,
-                      fontSize: "0.84rem",
+                      fontWeight: 700,
+                      fontSize: "0.86rem",
                       cursor: "pointer",
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                       transition: "all 0.15s ease",
+                      boxSizing: "border-box",
                     }}
                   >
                     <span>Explore all rooms in Distt. {locationModalTab}</span>
@@ -1851,7 +1862,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Towns Grid for Active District */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxHeight: "200px", overflowY: "auto" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxHeight: "240px", overflowY: "auto" }}>
                   {(HIMACHAL_DISTRICT_DATA[locationModalTab]?.towns || []).map((t) => (
                     <div
                       key={t.name}
@@ -1861,8 +1872,9 @@ export default function HomePage() {
                         setIsLocationModalOpen(false);
                       }}
                       style={{
-                        padding: "9px 12px",
-                        borderRadius: "8px",
+                        height: "46px",
+                        padding: "0 14px",
+                        borderRadius: "12px",
                         border: selectedCity === t.name ? "1.5px solid var(--primary)" : "1px solid #E2E8F0",
                         background: selectedCity === t.name ? "var(--primary-light)" : "#FFFFFF",
                         cursor: "pointer",
@@ -1870,11 +1882,10 @@ export default function HomePage() {
                         alignItems: "center",
                         justifyContent: "space-between",
                         transition: "all 0.15s",
+                        boxSizing: "border-box",
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#191E24" }}>{t.name}</div>
-                      </div>
+                      <div style={{ fontWeight: 600, fontSize: "0.86rem", color: "#191E24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
                       {selectedCity === t.name && <Check size={14} color="var(--primary)" />}
                     </div>
                   ))}

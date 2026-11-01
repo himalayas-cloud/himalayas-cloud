@@ -822,7 +822,7 @@ body {
   right: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 14px 16px;
   z-index: 40;
   pointer-events: none;
@@ -1368,26 +1368,48 @@ body {
   }
 
   .location-pill {
-    padding: 4px 10px;
-    font-size: 0.78rem;
+    height: 38px;
+    padding: 0 14px;
+    font-size: 0.82rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .header-actions {
     gap: 8px;
+    display: flex;
+    align-items: center;
   }
 
   .btn-host-navbar {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    height: 38px;
+    padding: 0 14px;
+    font-size: 0.82rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .btn-header-auth {
-    padding: 6px 10px;
-    font-size: 0.85rem;
+    height: 38px;
+    padding: 0 14px;
+    font-size: 0.84rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .user-badge-pill {
-    padding: 4px 10px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .user-badge-pill span {
@@ -1396,6 +1418,16 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.82rem !important;
+  }
+
+  .roomster-filter-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   /* Hero Section */
@@ -2610,39 +2642,44 @@ body {
 .mobile-view-toggle-bar {
   display: none;
   position: fixed;
-  bottom: 22px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   left: 50% !important;
   right: auto !important;
   transform: translateX(-50%) !important;
   background: #191E24;
   color: #ffffff;
-  padding: 5px;
-  border-radius: var(--radius-full);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
   z-index: 1500;
   width: auto !important;
   margin: 0 !important;
+  gap: 3px;
 }
 
 .mobile-view-toggle-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 18px;
-  border-radius: var(--radius-full);
+  height: 40px;
+  min-width: 104px;
+  padding: 0 18px;
+  border-radius: 999px;
   border: none;
   background: transparent;
   color: #CBD5E1;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .mobile-view-toggle-btn.active {
   background: var(--primary);
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(242, 106, 27, 0.4);
+  box-shadow: 0 2px 10px rgba(242, 106, 27, 0.45);
 }
 
 /* ============================================================
@@ -2682,12 +2719,13 @@ body {
   }
 
   .map-floating-preview-card {
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 16px)) !important;
     left: 50% !important;
     transform: translate(-50%, 0) !important;
     width: calc(100% - 24px) !important;
     max-width: 390px !important;
     margin: 0 auto !important;
+    z-index: 1400 !important;
   }
 
   .split-listings-grid {

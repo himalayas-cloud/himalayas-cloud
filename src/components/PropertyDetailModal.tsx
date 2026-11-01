@@ -170,19 +170,8 @@ export default function PropertyDetailModal({
           className="property-modal-sheet animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Elegant Top Navigation Bar (Back button, Share button, Close button) */}
+          {/* Top Bar Actions (Share button, Close button) */}
           <div className="property-modal-top-bar">
-            <button
-              type="button"
-              className="property-modal-nav-back-btn"
-              onClick={onClose}
-              aria-label="Back to listings"
-              title="Back"
-            >
-              <ChevronLeft size={20} />
-              <span>Back</span>
-            </button>
-
             <div className="property-modal-top-actions">
               <button
                 type="button"
