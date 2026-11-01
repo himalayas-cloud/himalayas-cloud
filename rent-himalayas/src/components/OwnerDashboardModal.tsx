@@ -27,7 +27,13 @@ import {
   updatePropertyListing,
   deletePropertyListing,
 } from "@/lib/properties";
-import { getSafeCoordinates, parseValidCoordinates, CITY_BASE_COORDINATES } from "@/lib/localities";
+import {
+  getSafeCoordinates,
+  parseValidCoordinates,
+  CITY_BASE_COORDINATES,
+  HIMACHAL_DISTRICTS,
+  getTownsForDistrict,
+} from "@/lib/localities";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { User } from "firebase/auth";
@@ -46,11 +52,11 @@ const MiniLocationPicker = dynamic(() => import("./MiniLocationPicker"), {
         color: "#64748B",
         fontSize: "0.85rem",
         borderRadius: "10px",
-        border: "1px dashed #CBD5E1",
+        border: "1px solid #E2E8F0",
         marginTop: "10px",
       }}
     >
-      <span>🗺️ Loading Pinpoint Map...</span>
+      <span>Loading Pinpoint Map...</span>
     </div>
   ),
 });
@@ -81,12 +87,16 @@ export default function OwnerDashboardModal({
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Simplified Form State (Only the 5 required fields + Photos)
   const [ownerName, setOwnerName] = useState(displayName || user.displayName || "");
   const [ownerPhone, setOwnerPhone] = useState(user.phoneNumber || "");
-  const [city, setCity] = useState<"Solan" | "Nahan" | "Shimla">("Solan");
+  const [district, setDistrict] = useState("Sirmaur");
+  const [town, setTown] = useState("Nahan");
+  const [isCustomTown, setIsCustomTown] = useState(false);
+  const [customTownName, setCustomTownName] = useState("");
   const [locationDetails, setLocationDetails] = useState("");
-  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(
+    CITY_BASE_COORDINATES["Nahan"] || [30.5599, 77.2955]
+  );
   const [propertyType, setPropertyType] = useState<"1 Room set" | "2 Room set" | "3 room set">("1 Room set");
   const [furnished, setFurnished] = useState<"No" | "Semi" | "Yes">("No");
   const [price, setPrice] = useState<number | "">("");
@@ -244,13 +254,16 @@ export default function OwnerDashboardModal({
       // 1. Upload photos from phone/PC
       const photoUrls = await uploadAllPhotos();
 
-      // 2. Title generated cleanly from property type and city/locality
-      const generatedTitle = `${propertyType} for Rent in ${city} (${locationDetails.trim()})`;
+      const effectiveTown = isCustomTown ? (customTownName.trim() || "Local Area") : town;
+      const effectiveCity = effectiveTown;
+
+      // 2. Title generated cleanly from property type, town, district and locality
+      const generatedTitle = `${propertyType} for Rent in ${effectiveCity}, ${district} (${locationDetails.trim()})`;
 
       // Always guaranteed valid coordinates [lat, lng] — never undefined or NaN!
       const safeCoordinates = parseValidCoordinates(
         selectedCoordinates,
-        city,
+        effectiveCity,
         locationDetails.trim()
       );
 
@@ -261,19 +274,20 @@ export default function OwnerDashboardModal({
         ownerPhone: ownerPhone.trim(),
         ownerEmail: user.email || undefined,
         title: generatedTitle,
-        description: `${propertyType} available for rent in ${locationDetails.trim()}, ${city}. Contact owner directly for visit and details.`,
+        description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
         propertyType,
         monthlyRent: Number(price),
-        city,
+        district,
+        city: effectiveCity,
         locality: locationDetails.trim(),
-        addressApprox: `${locationDetails.trim()}, ${city}`,
+        addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
         furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
         photos: photoUrls,
         status: "published",
         coordinates: safeCoordinates,
       });
 
-      setSuccessMsg("🎉 Your room has been published successfully and is now live on Rent Himalayas!");
+      setSuccessMsg("Your room has been published successfully and is now live on Rent Himalayas!");
       
       // Reset form
       setLocationDetails("");
@@ -389,7 +403,7 @@ export default function OwnerDashboardModal({
               Your Firestore Database is currently blocking requests because the production rules have not been published in the console yet.
             </p>
             <ol style={{ paddingLeft: "20px", marginTop: "6px", fontSize: "0.84rem" }}>
-              <li>Open <strong>Firebase Console ➔ Firestore Database ➔ Rules</strong> tab.</li>
+              <li>Open <strong>Firebase Console &rarr; Firestore Database &rarr; Rules</strong> tab.</li>
               <li>Replace existing content with:
                 <pre style={{ background: "#FDE68A", padding: "6px", borderRadius: "6px", marginTop: "4px", fontSize: "0.78rem" }}>
 {`rules_version = '2';
@@ -447,55 +461,119 @@ service cloud.firestore {
                 />
               </div>
 
-              {/* Field 3: Proper Location (City + Address + Online Geocoding + Pinpoint Map) */}
+              {/* Field 3: Two-Tier Location: District -> Town -> Exact Locality + Pinpoint Map */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <MapPin size={15} color="var(--primary)" />
-                    <span>3. Proper Location & Locality *</span>
+                    <span>3. Location (District & Town) *</span>
                   </span>
-                  {(selectedCoordinates || (locationDetails.trim() ? getSafeCoordinates(locationDetails.trim(), city) : null)) && (
+                  {selectedCoordinates && (
                     <span style={{ fontSize: "0.76rem", color: "#166534", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                      <Check size={13} color="#166534" /> Pinpointed in {city} (
-                      {(selectedCoordinates || getSafeCoordinates(locationDetails.trim(), city))[0].toFixed(3)}°N,{" "}
-                      {(selectedCoordinates || getSafeCoordinates(locationDetails.trim(), city))[1].toFixed(3)}°E)
+                      <Check size={13} color="#166534" /> Pinpointed: {isCustomTown ? customTownName || "Custom" : town}, {district}
                     </span>
                   )}
                 </label>
                 
-                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "10px" }}>
-                  <select
-                    className="filter-select"
-                    value={city}
-                    onChange={(e) => {
-                      const newCity = e.target.value as "Solan" | "Nahan" | "Shimla";
-                      setCity(newCity);
-                      setSelectedCoordinates(CITY_BASE_COORDINATES[newCity] || CITY_BASE_COORDINATES["Nahan"]);
-                    }}
-                  >
-                    <option value="Solan">Solan</option>
-                    <option value="Nahan">Nahan</option>
-                    <option value="Shimla">Shimla</option>
-                  </select>
+                {/* Tier 1: District & Tier 2: Town */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                  <div>
+                    <label style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748B", display: "block", marginBottom: "4px" }}>
+                      Select District
+                    </label>
+                    <select
+                      className="filter-select"
+                      style={{ width: "100%" }}
+                      value={district}
+                      onChange={(e) => {
+                        const newDistrict = e.target.value;
+                        setDistrict(newDistrict);
+                        const districtTowns = getTownsForDistrict(newDistrict);
+                        const defaultTown = districtTowns.length > 0 ? districtTowns[0].name : "Main Town";
+                        setTown(defaultTown);
+                        setIsCustomTown(false);
+                        setCustomTownName("");
+                        const targetCoords = (districtTowns.length > 0 ? districtTowns[0].coordinates : null) || CITY_BASE_COORDINATES[newDistrict] || [30.5599, 77.2955];
+                        setSelectedCoordinates(targetCoords);
+                      }}
+                    >
+                      {HIMACHAL_DISTRICTS.map((d) => (
+                        <option key={d} value={d}>
+                          Distt. {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div>
+                    <label style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748B", display: "block", marginBottom: "4px" }}>
+                      Town / Sub-Division
+                    </label>
+                    <select
+                      className="filter-select"
+                      style={{ width: "100%" }}
+                      value={isCustomTown ? "__other__" : town}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "__other__") {
+                          setIsCustomTown(true);
+                        } else {
+                          setIsCustomTown(false);
+                          setTown(val);
+                          const townCoords = CITY_BASE_COORDINATES[val] || CITY_BASE_COORDINATES[district] || [30.5599, 77.2955];
+                          setSelectedCoordinates(townCoords);
+                        }
+                      }}
+                    >
+                      {getTownsForDistrict(district).map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                      <option value="__other__">+ Other Town / Village</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Custom Town / Village name if chosen */}
+                {isCustomTown && (
+                  <div style={{ marginBottom: "10px" }}>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Location / Address (e.g. Near Jain Mandir, Naya Bazar)"
-                      value={locationDetails}
-                      onChange={(e) => setLocationDetails(e.target.value)}
+                      placeholder="Enter your Town, Tehsil, or Village name (e.g. Haripurdhar, Trilokpur, etc.)"
+                      value={customTownName}
+                      onChange={(e) => {
+                        setCustomTownName(e.target.value);
+                        const matchedCoord = CITY_BASE_COORDINATES[e.target.value.trim()];
+                        if (matchedCoord) setSelectedCoordinates(matchedCoord);
+                      }}
                       required
                     />
                   </div>
+                )}
+
+                {/* Street / Mohalla / Landmark address */}
+                <div>
+                  <label style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748B", display: "block", marginBottom: "4px" }}>
+                    Street Address / Mohalla / Landmark
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Near Gurudwara Sahib, Badripur, Ward No. 3"
+                    value={locationDetails}
+                    onChange={(e) => setLocationDetails(e.target.value)}
+                    required
+                  />
                 </div>
 
                 {/* Interactive Pinpoint Map - Pinpoint manually or by enabling GPS location */}
                 <div style={{ marginTop: "12px" }}>
                   <MiniLocationPicker
-                    coordinates={selectedCoordinates || parseValidCoordinates(null, city, locationDetails.trim())}
+                    coordinates={selectedCoordinates || parseValidCoordinates(null, isCustomTown ? customTownName : town, locationDetails.trim())}
                     onCoordinatesChange={(coords) => setSelectedCoordinates(coords)}
-                    localityLabel={locationDetails || city}
+                    localityLabel={`${locationDetails || (isCustomTown ? customTownName : town)}, ${district}`}
                   />
                 </div>
               </div>
@@ -598,16 +676,40 @@ service cloud.firestore {
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   style={{
-                    border: "2px dashed var(--primary-border)",
-                    borderRadius: "12px",
+                    border: "1.5px solid #CBD5E1",
+                    borderRadius: "14px",
                     padding: "24px 16px",
                     textAlign: "center",
                     cursor: "pointer",
-                    background: "var(--primary-light)",
-                    transition: "all 0.2s",
+                    background: "#F8FAFC",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--primary)";
+                    e.currentTarget.style.background = "#FFF7ED";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#CBD5E1";
+                    e.currentTarget.style.background = "#F8FAFC";
                   }}
                 >
-                  <Upload size={28} color="var(--primary)" style={{ margin: "0 auto 8px" }} />
+                  <div
+                    style={{
+                      width: "44px",
+                      height: "44px",
+                      borderRadius: "12px",
+                      background: "#FFFFFF",
+                      border: "1px solid #E2E8F0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 10px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <Upload size={22} color="var(--primary)" />
+                  </div>
                   <p style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-main)" }}>
                     Tap to Select Photos from Phone or PC
                   </p>
@@ -718,10 +820,11 @@ service cloud.firestore {
               <div
                 style={{
                   textAlign: "center",
-                  padding: "40px 20px",
-                  background: "#F8FAFC",
-                  borderRadius: "12px",
-                  border: "2px dashed var(--border-color)",
+                  padding: "44px 20px",
+                  background: "#FFFFFF",
+                  borderRadius: "14px",
+                  border: "1px solid #E2E8F0",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 }}
               >
                 <Home size={38} color="#94A3B8" style={{ margin: "0 auto 10px" }} />

@@ -2,9 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { PropertyDetail } from "./PropertyDetailModal";
-import { getCoordinatesForLocality, parseValidCoordinates } from "@/lib/localities";
+import { getCoordinatesForLocality, parseValidCoordinates, CITY_BASE_COORDINATES } from "@/lib/localities";
 
-interface PropertyMapProps {
+export interface PropertyMapProps {
   properties: PropertyDetail[];
   selectedCity: string;
   selectedProperty: PropertyDetail | null;
@@ -13,13 +13,7 @@ interface PropertyMapProps {
   onSelectProperty: (property: PropertyDetail) => void;
 }
 
-// Default coordinates for Himachal Pradesh cities
-export const CITY_COORDINATES: Record<string, [number, number]> = {
-  Solan: [30.9084, 77.0999],
-  Nahan: [30.5599, 77.2955],
-  Shimla: [31.1048, 77.1734],
-  All: [30.8200, 77.2000], // Center between Solan, Nahan, Shimla
-};
+export const CITY_COORDINATES = CITY_BASE_COORDINATES;
 
 export default function PropertyMap({
   properties,
@@ -165,7 +159,7 @@ export default function PropertyMap({
             <div class="map-popup-img" style="background-image: url('${photoUrl}');"></div>
             <div class="map-popup-info">
               <h4 class="map-popup-title">${prop.title}</h4>
-              <p class="map-popup-location">📍 ${prop.locality ? `${prop.locality}, ${prop.city}` : prop.city}</p>
+              <p class="map-popup-location">${prop.locality ? `${prop.locality}, ${prop.city}` : prop.city}</p>
               <div class="map-popup-bottom">
                 <span class="map-popup-price">₹${prop.price.toLocaleString("en-IN")}/mo</span>
                 <button class="map-popup-btn" id="btn-popup-${prop.id}">View Details</button>

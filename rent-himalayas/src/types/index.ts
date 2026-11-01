@@ -27,7 +27,8 @@ export interface PropertyListing {
   propertyType: PropertyType;
   monthlyRent: number; // in INR
   deposit?: number;
-  city: "Solan" | "Nahan" | "Shimla" | string;
+  district?: string; // e.g. "Sirmaur", "Solan", "Shimla", etc.
+  city: string; // Town / City (e.g. "Paonta Sahib", "Nahan", "Shillai", "Baddi", etc.)
   locality: string;
   addressApprox: string;
   areaSqft?: number;

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Maximize2,
   Sparkles,
+  Camera,
 } from "lucide-react";
 
 const PropertyDetailMap = dynamic(() => import("./PropertyDetailMap"), {
@@ -44,7 +45,8 @@ export interface PropertyDetail {
   price: number;
   area?: number;
   furnished?: "Yes" | "No" | "Semi" | string;
-  city: "Solan" | "Nahan" | "Shimla" | string;
+  district?: string;
+  city: string;
   locality: string;
   address?: string;
   ownerName: string;
@@ -190,8 +192,9 @@ export default function PropertyDetailModal({
 
               {/* Photo Counter */}
               {photos.length > 1 && (
-                <div className="detail-photo-counter">
-                  📷 {activePhotoIdx + 1} / {photos.length}
+                <div className="detail-photo-counter" style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                  <Camera size={12} strokeWidth={2.2} />
+                  <span>{activePhotoIdx + 1} / {photos.length}</span>
                 </div>
               )}
 
@@ -324,7 +327,7 @@ export default function PropertyDetailModal({
                 </span>
               </div>
               <span className="detail-owner-phone-sub">
-                📞 {property.ownerPhone}
+                {property.ownerPhone}
               </span>
             </div>
           </div>
@@ -381,8 +384,9 @@ export default function PropertyDetailModal({
 
         <div className="lightbox-header-info">
           <span className="lightbox-title">{property.title}</span>
-          <span className="lightbox-counter">
-            📷 {activePhotoIdx + 1} of {photos.length}
+          <span className="lightbox-counter" style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <Camera size={13} strokeWidth={2.2} />
+            <span>{activePhotoIdx + 1} of {photos.length}</span>
           </span>
         </div>
 

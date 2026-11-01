@@ -8,6 +8,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDocs,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -110,6 +111,31 @@ export function subscribePublishedProperties(
       if (onError) onError(err);
     }
   );
+}
+
+/**
+ * One-shot fetch for published properties (used by Next.js edge-cached API routes).
+ * Returns JSON-serializable property listings so responses can be cached across edge CDNs.
+ */
+export async function fetchPublishedProperties(): Promise<any[]> {
+  const q = query(
+    collection(db, PROPERTIES_COLLECTION),
+    where("status", "==", "published")
+  );
+
+  const snapshot = await getDocs(q);
+  const properties = snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
+      updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Date.now(),
+    };
+  });
+
+  properties.sort((a, b) => b.createdAt - a.createdAt);
+  return properties;
 }
 
 /**

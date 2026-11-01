@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Navigation, Loader2 } from "lucide-react";
+import { Navigation, Loader2, MapPin, Check, AlertCircle } from "lucide-react";
 import { parseValidCoordinates } from "@/lib/localities";
 
 interface MiniLocationPickerProps {
@@ -66,7 +66,7 @@ export default function MiniLocationPicker({
               border: 2.5px solid #ffffff;
               cursor: grab;
             ">
-              <span style="transform: rotate(45deg); font-size: 15px; line-height: 1;">🏠</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(45deg); display: block;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
           `,
           iconSize: [36, 36],
@@ -210,7 +210,7 @@ export default function MiniLocationPicker({
             Pinpoint on Map
           </span>
           <span style={{ fontSize: "0.72rem", color: "#64748B" }}>
-            (Tap map or drag 🏠 pin)
+            (Tap map or drag pin to position)
           </span>
         </div>
 
@@ -252,9 +252,13 @@ export default function MiniLocationPicker({
             fontSize: "0.74rem",
             padding: "5px 12px",
             borderBottom: "1px solid #FCA5A5",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
           }}
         >
-          ⚠️ {locateError}
+          <AlertCircle size={13} />
+          <span>{locateError}</span>
         </div>
       )}
 
@@ -284,11 +288,13 @@ export default function MiniLocationPicker({
           gap: "4px",
         }}
       >
-        <span style={{ fontWeight: 600, color: "#1E293B" }}>
-          📍 Selected Coordinates: {coordinates[0].toFixed(5)}°N, {coordinates[1].toFixed(5)}°E
+        <span style={{ fontWeight: 600, color: "#1E293B", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+          <MapPin size={13} color="#F26A1B" />
+          <span>GPS: {coordinates[0].toFixed(5)}°N, {coordinates[1].toFixed(5)}°E</span>
         </span>
-        <span style={{ color: "#166534", fontWeight: 700, fontSize: "0.74rem" }}>
-          ✓ Pin saved with room
+        <span style={{ color: "#166534", fontWeight: 700, fontSize: "0.74rem", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+          <Check size={13} />
+          <span>Pin set for listing</span>
         </span>
       </div>
     </div>

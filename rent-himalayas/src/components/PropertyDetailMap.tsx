@@ -76,7 +76,7 @@ export default function PropertyDetailMap({
                   box-shadow: 0 4px 16px rgba(242, 106, 27, 0.5);
                   border: 2.5px solid #ffffff;
                 ">
-                  <span style="transform: rotate(45deg); font-size: 16px; line-height: 1;">🏠</span>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(45deg); display: block;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
               </div>
             `,
@@ -92,7 +92,7 @@ export default function PropertyDetailMap({
           const popupContent = `
             <div style="font-family: inherit; font-size: 13px; min-width: 150px;">
               <div style="font-weight: 800; color: #191E24; margin-bottom: 2px;">${safeTitle}</div>
-              <div style="color: #64748B; font-size: 11px; margin-bottom: 4px;">📍 ${safeLocality}, ${city || "HP"}</div>
+              <div style="color: #64748B; font-size: 11px; margin-bottom: 4px;">${safeLocality}, ${city || "HP"}</div>
               ${price ? `<div style="font-weight: 800; color: #F26A1B; font-size: 13px;">₹${price.toLocaleString("en-IN")}/mo</div>` : ""}
             </div>
           `;
@@ -228,10 +228,10 @@ export default function PropertyDetailMap({
         }}
       >
         <span style={{ fontWeight: 600 }}>
-          📍 GPS: {lat.toFixed(5)}°N, {lng.toFixed(5)}°E
+          GPS: {lat.toFixed(5)}°N, {lng.toFixed(5)}°E
         </span>
         <span style={{ color: "#166534", fontWeight: 700 }}>
-          ✓ Verified Room Coordinates
+          Verified Location
         </span>
       </div>
     </div>

@@ -23,12 +23,21 @@ import {
   List as ListIcon,
   Check,
   SlidersHorizontal,
+  Camera,
+  ChevronRight,
 } from "lucide-react";
 import { ConfirmationResult } from "firebase/auth";
 import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
-import { subscribePublishedProperties } from "@/lib/properties";
-import { searchLocalities, getCoordinatesForLocality, HIMACHAL_LOCALITIES, parseValidCoordinates } from "@/lib/localities";
+import {
+  searchLocalities,
+  getCoordinatesForLocality,
+  HIMACHAL_LOCALITIES,
+  parseValidCoordinates,
+  HIMACHAL_DISTRICTS,
+  HIMACHAL_DISTRICT_DATA,
+  CITY_BASE_COORDINATES,
+} from "@/lib/localities";
 
 // Dynamic import of Leaflet PropertyMap for SSR safety
 const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
@@ -46,7 +55,7 @@ const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
         fontSize: "0.95rem",
       }}
     >
-      <span>🗺️ Loading Himalayan Map...</span>
+      <span>Loading Himalayan Map...</span>
     </div>
   ),
 });
@@ -123,7 +132,8 @@ const DUMMY_PROPERTIES: Property[] = [
     price: 9500,
     area: 550,
     furnished: "Furnished",
-    city: "Shimla",
+    city: "Shimla City",
+    district: "Shimla",
     locality: "Lakkar Bazaar",
     address: "Near The Ridge & Lakkar Bazaar, Shimla",
     coordinates: [31.1070, 77.1755],
@@ -136,6 +146,85 @@ const DUMMY_PROPERTIES: Property[] = [
     ],
     type: "1 Room set",
     description: "Warm wooden-finished studio room set overlooking pine valleys. 10 minutes walk from The Ridge. Fully furnished with bed, wardrobe, heater, and geyser.",
+  },
+  {
+    id: "prop-5",
+    title: "Independent 1 Room Set in Shamsherpur",
+    price: 6500,
+    area: 600,
+    furnished: "No Furnished",
+    city: "Paonta Sahib",
+    district: "Sirmaur",
+    locality: "Shamsherpur",
+    address: "Near Industrial Area & Badripur Chowk, Paonta Sahib, Sirmaur",
+    coordinates: [30.4410, 77.6320],
+    ownerName: "Harpreet Singh",
+    ownerPhone: "+91 98160 55443",
+    photos: [
+      "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "1 Room set",
+    description: "Comfortable independent room set with attached bathroom and kitchen. Very convenient for executives, bank employees, or industrial workers in Paonta Sahib.",
+  },
+  {
+    id: "prop-6",
+    title: "Spacious 2BHK Near Degree College Road",
+    price: 7500,
+    area: 950,
+    furnished: "Semi-Furnished",
+    city: "Shillai",
+    district: "Sirmaur",
+    locality: "Degree College Road",
+    address: "Near Govt Degree College & Main Bazar, Shillai, Sirmaur",
+    coordinates: [30.6890, 77.7240],
+    ownerName: "Surender Negi",
+    ownerPhone: "+91 98170 88776",
+    photos: [
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "2 Room set",
+    description: "Scenic 2BHK room set with wide open mountain views of Trans-Giri valley. 24-hour water supply, separate entrance, peaceful residential location in Shillai.",
+  },
+  {
+    id: "prop-7",
+    title: "Studio Room in Moginand Near Highway",
+    price: 5000,
+    area: 500,
+    furnished: "No Furnished",
+    city: "Kala Amb",
+    district: "Sirmaur",
+    locality: "Moginand",
+    address: "Near Industrial Area Phase 1 & Moginand, Kala Amb, Sirmaur",
+    coordinates: [30.4950, 77.2150],
+    ownerName: "Devinder Bansal",
+    ownerPhone: "+91 98050 33221",
+    photos: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "1 Room set",
+    description: "Affordable room set right next to Kala Amb industrial zone. Ideal for company staff, factory supervisors, and engineers working in Kala Amb.",
+  },
+  {
+    id: "prop-8",
+    title: "Modern 1BHK in Baddi Phase 2",
+    price: 8000,
+    area: 750,
+    furnished: "Semi-Furnished",
+    city: "Baddi",
+    district: "Solan",
+    locality: "Phase 2 / Sai Road",
+    address: "Near Sai Road & Pharma Industrial Park, Baddi, Solan",
+    coordinates: [30.9578, 76.7914],
+    ownerName: "Vikram Chauhan",
+    ownerPhone: "+91 98820 44556",
+    photos: [
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "1 Room set",
+    description: "Well-maintained 1BHK flat in prime Baddi location. 24/7 power backup, reserved parking, very close to major pharmaceutical plants.",
   },
 ];
 
@@ -162,6 +251,11 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchLocalityDropdown, setShowSearchLocalityDropdown] = useState(false);
   const [panToCoordinate, setPanToCoordinate] = useState<[number, number] | null>(null);
+
+  // Two-Tier Location Modal State
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [locationModalTab, setLocationModalTab] = useState("Sirmaur");
+  const [locationSearchQuery, setLocationSearchQuery] = useState("");
 
   // Popover state for interactive buttons
   const [openPopover, setOpenPopover] = useState<"budget" | "type" | "furnishing" | null>(null);
@@ -214,35 +308,44 @@ export default function HomePage() {
     }
   }, [profile]);
 
-  // Subscribe to live published properties from Firestore
-  useEffect(() => {
-    const unsubscribe = subscribePublishedProperties((listings) => {
-      const formatted: Property[] = listings.map((l) => ({
-        id: l.id || `fs-${Math.random()}`,
-        title: l.title,
-        price: l.monthlyRent,
-        area: l.areaSqft || 900,
-        furnished: l.furnished || "No Furnished",
-        city: (l.city as "Solan" | "Nahan" | "Shimla") || "Solan",
-        locality: l.locality,
-        address: l.addressApprox || `${l.locality}, ${l.city}`,
-        ownerName: l.ownerName,
-        ownerPhone: l.ownerPhone,
-        photos:
-          l.photos && l.photos.length > 0
-            ? l.photos
-            : [
-                "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-              ],
-        type: (l.propertyType as any) || "1 Room set",
-        description: l.description,
-        status: l.status,
-        coordinates: parseValidCoordinates(l.coordinates, l.city, l.locality),
-      }));
-      setFirestoreProperties(formatted);
-    });
+  // Fetch edge-cached published properties from Next.js API route
+  const loadProperties = async () => {
+    try {
+      const res = await fetch("/api/properties");
+      if (res.ok) {
+        const listings = await res.json();
+        const formatted: Property[] = listings.map((l: any) => ({
+          id: l.id || `fs-${Math.random()}`,
+          title: l.title,
+          price: l.monthlyRent,
+          area: l.areaSqft || 900,
+          furnished: l.furnished || "No Furnished",
+          district: l.district || "Sirmaur",
+          city: l.city || "Nahan",
+          locality: l.locality,
+          address: l.addressApprox || `${l.locality}, ${l.city}`,
+          ownerName: l.ownerName,
+          ownerPhone: l.ownerPhone,
+          photos:
+            l.photos && l.photos.length > 0
+              ? l.photos
+              : [
+                  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+                ],
+          type: (l.propertyType as any) || "1 Room set",
+          description: l.description,
+          status: l.status,
+          coordinates: parseValidCoordinates(l.coordinates, l.city, l.locality),
+        }));
+        setFirestoreProperties(formatted);
+      }
+    } catch (err) {
+      console.error("Error loading cached properties:", err);
+    }
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    loadProperties();
   }, []);
 
   const handleOpenAuth = () => {
@@ -327,9 +430,26 @@ export default function HomePage() {
     ),
   ];
 
-  // Filter properties
+  // Filter properties with two-tier District & Town matching
   const filteredProperties = combinedProperties.filter((prop) => {
-    if (selectedCity !== "All" && prop.city !== selectedCity) return false;
+    if (selectedCity !== "All") {
+      const target = selectedCity.toLowerCase().trim();
+      const propCity = (prop.city || "").toLowerCase().trim();
+      const propDist = ((prop as any).district || "").toLowerCase().trim();
+      const propAddr = (prop.address || "").toLowerCase();
+      const propLoc = (prop.locality || "").toLowerCase();
+
+      const matches =
+        propCity === target ||
+        propCity.includes(target) ||
+        target.includes(propCity) ||
+        propDist === target ||
+        propDist.includes(target) ||
+        propAddr.includes(target) ||
+        propLoc.includes(target);
+
+      if (!matches) return false;
+    }
     if (
       searchQuery &&
       !prop.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -407,15 +527,11 @@ export default function HomePage() {
             </span>
           </a>
 
-          {/* City Switcher Pill */}
+          {/* Two-Tier Location Switcher Pill */}
           <div
             className="location-pill"
-            onClick={() => {
-              const cities = ["All", "Solan", "Nahan", "Shimla"];
-              const nextIdx = (cities.indexOf(selectedCity) + 1) % cities.length;
-              setSelectedCity(cities[nextIdx]);
-              setPanToCoordinate(null);
-            }}
+            onClick={() => setIsLocationModalOpen(true)}
+            title="Click to select location across Sirmaur, Solan, Shimla, or all Himachal"
           >
             <MapPin size={16} className="text-primary" />
             <span>{selectedCity === "All" ? "Himachal (All)" : selectedCity}</span>
@@ -884,12 +1000,16 @@ export default function HomePage() {
                         backdropFilter: "blur(4px)",
                         color: "#FFFFFF",
                         fontSize: "0.72rem",
-                        fontWeight: 700,
-                        padding: "2px 7px",
+                        fontWeight: 600,
+                        padding: "3px 8px",
                         borderRadius: "999px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
                       }}
                     >
-                      📷 {property.photos.length}
+                      <Camera size={12} strokeWidth={2.4} />
+                      <span>{property.photos.length}</span>
                     </span>
                   )}
                 </div>
@@ -965,12 +1085,13 @@ export default function HomePage() {
           {filteredProperties.length === 0 && (
             <div
               style={{
-                padding: "40px 20px",
+                padding: "48px 24px",
                 textAlign: "center",
                 background: "#ffffff",
-                borderRadius: "12px",
-                border: "1px dashed #CBD5E1",
-                margin: "20px 0",
+                borderRadius: "16px",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
+                margin: "24px 0",
               }}
             >
               <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "#191E24", marginBottom: "6px" }}>
@@ -1158,7 +1279,7 @@ export default function HomePage() {
             {authTab === "phone" && (
               <div>
                 <div className="alert-info">
-                  <strong>💡 Tip for Development:</strong> Firebase Spark tier has a strict SMS limit.
+                  <strong>Development Note:</strong> Firebase Spark tier has a strict SMS limit.
                   Use your configured test number <code>+91 99999 99999</code> with code <code>123456</code> for instant, quota-free login!
                 </div>
 
@@ -1338,7 +1459,7 @@ export default function HomePage() {
                 onClick={handleRunSecurityTest}
                 style={{ fontSize: "0.85rem", marginBottom: "12px" }}
               >
-                ⚡ Test Security: Attempt Admin Escalation
+                Test Security: Attempt Admin Escalation
               </button>
 
               {securityTestResult && (
@@ -1387,10 +1508,224 @@ export default function HomePage() {
       {isOwnerDashboardOpen && user && (
         <OwnerDashboardModal
           isOpen={isOwnerDashboardOpen}
-          onClose={() => setIsOwnerDashboardOpen(false)}
+          onClose={() => {
+            setIsOwnerDashboardOpen(false);
+            loadProperties();
+          }}
           user={user}
           displayName={profile?.displayName || user.displayName || ""}
         />
+      )}
+
+      {/* TWO-TIER LOCATION SELECTOR MODAL (SWIGGY / AIRBNB / HOUSING STYLE) */}
+      {isLocationModalOpen && (
+        <div className="modal-overlay animate-fade-in" onClick={() => setIsLocationModalOpen(false)}>
+          <div
+            className="modal-dialog animate-slide-down"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "560px", padding: "20px" }}
+          >
+            <button className="modal-close-btn" onClick={() => setIsLocationModalOpen(false)}>
+              <X size={20} />
+            </button>
+
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <div style={{ background: "var(--primary-light)", padding: "8px", borderRadius: "8px", color: "var(--primary)" }}>
+                <MapPin size={22} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, color: "#191E24" }}>
+                  Select Location in Himachal
+                </h2>
+                <p style={{ fontSize: "0.8rem", color: "#64748B", margin: 0 }}>
+                  Browse rooms in Sirmaur, Solan, Shimla, or across Himachal Pradesh
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Search */}
+            <div style={{ position: "relative", marginBottom: "12px" }}>
+              <Search size={16} color="#64748B" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search town, tehsil, or district (e.g. Paonta, Shillai, Baddi, Nahan)..."
+                value={locationSearchQuery}
+                onChange={(e) => setLocationSearchQuery(e.target.value)}
+                style={{ paddingLeft: "36px" }}
+              />
+            </div>
+
+            {/* Quick "All Himachal Pradesh" pill */}
+            <div style={{ marginBottom: "12px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCity("All");
+                  setPanToCoordinate(null);
+                  setIsLocationModalOpen(false);
+                  setLocationSearchQuery("");
+                }}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  borderRadius: "8px",
+                  border: selectedCity === "All" ? "2px solid var(--primary)" : "1px solid #E2E8F0",
+                  background: selectedCity === "All" ? "var(--primary-light)" : "#F8FAFC",
+                  color: selectedCity === "All" ? "var(--primary)" : "#1E293B",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span>All Himachal Pradesh (Show All Rooms)</span>
+                {selectedCity === "All" && <Check size={16} />}
+              </button>
+            </div>
+
+            {/* If Search Query is active: show matching towns across all districts */}
+            {locationSearchQuery.trim() ? (
+              <div>
+                <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#64748B", marginBottom: "8px" }}>
+                  Matching Towns & Areas:
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxHeight: "240px", overflowY: "auto" }}>
+                  {HIMACHAL_DISTRICTS.flatMap((d) => (HIMACHAL_DISTRICT_DATA[d]?.towns || []))
+                    .filter((t) =>
+                      t.name.toLowerCase().includes(locationSearchQuery.toLowerCase()) ||
+                      t.district.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                    )
+                    .map((item) => (
+                      <div
+                        key={`${item.district}-${item.name}`}
+                        onClick={() => {
+                          setSelectedCity(item.name);
+                          setPanToCoordinate(item.coordinates);
+                          setIsLocationModalOpen(false);
+                          setLocationSearchQuery("");
+                        }}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid #E2E8F0",
+                          background: selectedCity === item.name ? "var(--primary-light)" : "#FFFFFF",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "#191E24" }}>{item.name}</div>
+                        <div style={{ fontSize: "0.72rem", color: "#64748B" }}>Distt. {item.district}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              /* Two-Tier District Tabs & Town Grid */
+              <div>
+                {/* District Tabs */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    overflowX: "auto",
+                    paddingBottom: "8px",
+                    borderBottom: "1px solid #E2E8F0",
+                    marginBottom: "12px",
+                  }}
+                >
+                  {HIMACHAL_DISTRICTS.map((distName) => (
+                    <button
+                      key={distName}
+                      type="button"
+                      onClick={() => setLocationModalTab(distName)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "20px",
+                        border: locationModalTab === distName ? "1.5px solid var(--primary)" : "1px solid #E2E8F0",
+                        background: locationModalTab === distName ? "var(--primary-light)" : "#FFFFFF",
+                        color: locationModalTab === distName ? "var(--primary)" : "#475569",
+                        fontWeight: 700,
+                        fontSize: "0.8rem",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {distName}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Quick "Entire District" button */}
+                <div style={{ marginBottom: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCity(locationModalTab);
+                      const coords = HIMACHAL_DISTRICT_DATA[locationModalTab]?.center || CITY_BASE_COORDINATES[locationModalTab];
+                      if (coords) setPanToCoordinate(coords);
+                      setIsLocationModalOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1px solid #E2E8F0",
+                      background: "#F8FAFC",
+                      color: "#0F172A",
+                      fontWeight: 600,
+                      fontSize: "0.84rem",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span>Explore all rooms in Distt. {locationModalTab}</span>
+                    <ChevronRight size={16} color="#64748B" />
+                  </button>
+                </div>
+
+                {/* Towns Grid for Active District */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxHeight: "200px", overflowY: "auto" }}>
+                  {(HIMACHAL_DISTRICT_DATA[locationModalTab]?.towns || []).map((t) => (
+                    <div
+                      key={t.name}
+                      onClick={() => {
+                        setSelectedCity(t.name);
+                        setPanToCoordinate(t.coordinates);
+                        setIsLocationModalOpen(false);
+                      }}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: "8px",
+                        border: selectedCity === t.name ? "1.5px solid var(--primary)" : "1px solid #E2E8F0",
+                        background: selectedCity === t.name ? "var(--primary-light)" : "#FFFFFF",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#191E24" }}>{t.name}</div>
+                      </div>
+                      {selectedCity === t.name && <Check size={14} color="var(--primary)" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
