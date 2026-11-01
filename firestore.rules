@@ -27,9 +27,11 @@ service cloud.firestore {
       // Any logged-in owner can create listings
       allow create: if isAuthenticated();
       
-      // Owners can update or delete their own listings
+      // Owners can update or delete their own listings (by UID or verified email)
       allow update, delete: if isAuthenticated() 
-        && (resource.data.ownerUid == request.auth.uid || !('ownerUid' in resource.data));
+        && (resource.data.ownerUid == request.auth.uid 
+            || (resource.data.ownerEmail != null && request.auth.token.email != null && resource.data.ownerEmail == request.auth.token.email)
+            || !('ownerUid' in resource.data));
     }
 
     // -------------------------------------------------------------

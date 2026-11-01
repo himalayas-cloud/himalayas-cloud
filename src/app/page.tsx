@@ -272,16 +272,25 @@ export default function HomePage() {
     profile,
     loading,
     authError,
+    isGoogleLinked,
+    isPasswordLinked,
     clearError,
     signupWithEmail,
     loginWithEmail,
     loginWithGoogle,
+    linkGoogleAccount,
     logout,
     updateProfileData,
   } = useAuth();
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Navigation & Filter state
-  const [selectedCity, setSelectedCity] = useState<string>("All");
+  const [selectedCity, setSelectedCity] = useState<string>("Nahan");
+  const [activeMapPreview, setActiveMapPreview] = useState<Property | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchLocalityDropdown, setShowSearchLocalityDropdown] = useState(false);
   const [panToCoordinate, setPanToCoordinate] = useState<[number, number] | null>(null);
@@ -572,7 +581,7 @@ export default function HomePage() {
             <span>Rent Your Room</span>
           </button>
 
-          {loading && !profile ? (
+          {!isMounted || (loading && !profile) ? (
             <div
               style={{
                 width: "90px",
@@ -1171,28 +1180,43 @@ export default function HomePage() {
             selectedProperty={selectedPropertyForDetail}
             hoveredPropertyId={hoveredPropertyId}
             panToCoordinate={panToCoordinate}
-            onSelectProperty={(p) => setSelectedPropertyForDetail(p as Property)}
+            onSelectProperty={(p) => {
+              setActiveMapPreview(null);
+              setSelectedPropertyForDetail(p as Property);
+            }}
+            mobileView={mobileView}
+            onActivePreviewChange={(p) => setActiveMapPreview(p as Property | null)}
           />
         </section>
       </main>
 
-      {/* Mobile Floating Toggle (List vs Map) */}
-      <div className="mobile-view-toggle-bar">
-        <button
-          className={`mobile-view-toggle-btn ${mobileView === "list" ? "active" : ""}`}
-          onClick={() => setMobileView("list")}
-        >
-          <ListIcon size={16} />
-          <span>List ({filteredProperties.length})</span>
-        </button>
-        <button
-          className={`mobile-view-toggle-btn ${mobileView === "map" ? "active" : ""}`}
-          onClick={() => setMobileView("map")}
-        >
-          <MapIcon size={16} />
-          <span>Map</span>
-        </button>
-      </div>
+      {/* Mobile Floating Toggle (List vs Map) - Automatically hidden when any popup, preview card, or modal is open */}
+      {!selectedPropertyForDetail &&
+        !activeMapPreview &&
+        !isAuthModalOpen &&
+        !isProfileModalOpen &&
+        !isOwnerDashboardOpen &&
+        !isLocationModalOpen && (
+          <div className="mobile-view-toggle-bar animate-fade-in">
+            <button
+              className={`mobile-view-toggle-btn ${mobileView === "list" ? "active" : ""}`}
+              onClick={() => {
+                setActiveMapPreview(null);
+                setMobileView("list");
+              }}
+            >
+              <ListIcon size={16} />
+              <span>List ({filteredProperties.length})</span>
+            </button>
+            <button
+              className={`mobile-view-toggle-btn ${mobileView === "map" ? "active" : ""}`}
+              onClick={() => setMobileView("map")}
+            >
+              <MapIcon size={16} />
+              <span>Map</span>
+            </button>
+          </div>
+        )}
 
       {/* AUTH MODAL (CLEAN EMAIL/PASSWORD & GOOGLE AUTH) */}
       {isAuthModalOpen && (
@@ -1477,6 +1501,55 @@ export default function HomePage() {
                   Linked to your account and cannot be modified.
                 </span>
               </div>
+
+              {/* Connected Sign-In Methods (Prevents Duplicate Accounts) */}
+              <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>
+                  Connected Sign-In Methods
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#1E293B" }}>Google Sign-In</span>
+                  </div>
+                  {isGoogleLinked ? (
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#16A34A", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <Check size={14} /> Connected
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await linkGoogleAccount();
+                          setProfileSuccessMsg("Google account successfully connected to your profile!");
+                          setTimeout(() => setProfileSuccessMsg(""), 3500);
+                        } catch (err: any) {
+                          console.error("Link google error:", err);
+                        }
+                      }}
+                      style={{
+                        background: "#FFFFFF",
+                        border: "1px solid #CBD5E1",
+                        borderRadius: "6px",
+                        padding: "5px 12px",
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        color: "#1E293B",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      Connect Google
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Save Changes Button */}
@@ -1570,25 +1643,24 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Quick "All Himachal Pradesh" pill */}
-            <div style={{ marginBottom: "12px" }}>
+            {/* Quick Sirmaur / Nahan & All HP pills */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedCity("All");
-                  setPanToCoordinate(null);
+                  setSelectedCity("Nahan");
+                  setPanToCoordinate([30.5599, 77.2955]);
                   setIsLocationModalOpen(false);
                   setLocationSearchQuery("");
                 }}
                 style={{
-                  width: "100%",
                   padding: "9px 12px",
                   borderRadius: "8px",
-                  border: selectedCity === "All" ? "2px solid var(--primary)" : "1px solid #E2E8F0",
-                  background: selectedCity === "All" ? "var(--primary-light)" : "#F8FAFC",
-                  color: selectedCity === "All" ? "var(--primary)" : "#1E293B",
+                  border: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "2px solid var(--primary)" : "1px solid #E2E8F0",
+                  background: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "var(--primary-light)" : "#F8FAFC",
+                  color: (selectedCity === "Nahan" || selectedCity === "Sirmaur") ? "var(--primary)" : "#1E293B",
                   fontWeight: 700,
-                  fontSize: "0.88rem",
+                  fontSize: "0.85rem",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -1596,7 +1668,34 @@ export default function HomePage() {
                   transition: "all 0.15s",
                 }}
               >
-                <span>All Himachal Pradesh (Show All Rooms)</span>
+                <span>Nahan (Distt. Sirmaur)</span>
+                {(selectedCity === "Nahan" || selectedCity === "Sirmaur") && <Check size={16} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCity("All");
+                  setPanToCoordinate([30.5599, 77.2955]);
+                  setIsLocationModalOpen(false);
+                  setLocationSearchQuery("");
+                }}
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: "8px",
+                  border: selectedCity === "All" ? "2px solid var(--primary)" : "1px solid #E2E8F0",
+                  background: selectedCity === "All" ? "var(--primary-light)" : "#F8FAFC",
+                  color: selectedCity === "All" ? "var(--primary)" : "#1E293B",
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span>All Himachal</span>
                 {selectedCity === "All" && <Check size={16} />}
               </button>
             </div>

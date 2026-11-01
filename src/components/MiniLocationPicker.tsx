@@ -73,7 +73,7 @@ export default function MiniLocationPicker({
           iconAnchor: [18, 36],
         });
 
-        const marker = L.marker(coordinates, {
+        const marker = L.marker(safeCoords, {
           draggable: true,
           icon: customIcon,
         }).addTo(map);

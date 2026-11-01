@@ -10,6 +10,10 @@ import {
   signOut,
   updateProfile as updateFirebaseProfile,
   AuthError,
+  GoogleAuthProvider,
+  linkWithPopup,
+  linkWithCredential,
+  AuthCredential,
 } from "firebase/auth";
 import {
   doc,
@@ -33,10 +37,13 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   authError: string | null;
+  isGoogleLinked: boolean;
+  isPasswordLinked: boolean;
   clearError: () => void;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  linkGoogleAccount: () => Promise<void>;
   logout: () => Promise<void>;
   updateDisplayName: (newName: string) => Promise<void>;
   updateProfileData: (updates: { displayName?: string; phoneNumber?: string; photoURL?: string }) => Promise<void>;
@@ -60,8 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [pendingGoogleCred, setPendingGoogleCred] = useState<AuthCredential | null>(null);
 
-  const clearError = () => setAuthError(null);
+  const clearError = () => {
+    setAuthError(null);
+  };
+
+  const isGoogleLinked = Boolean(user?.providerData?.some((p) => p.providerId === "google.com"));
+  const isPasswordLinked = Boolean(user?.providerData?.some((p) => p.providerId === "password"));
 
   // Helper to map Firebase errors to clear, user-friendly messages
   const parseAuthError = (err: unknown): string => {
@@ -74,6 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Invalid email or password. Please verify your credentials.";
       case "auth/email-already-in-use":
         return "An account with this email address already exists. Please log in instead.";
+      case "auth/account-exists-with-different-credential":
+        return "An account with this email already exists with password. Please sign in with your password to link your Google account.";
+      case "auth/credential-already-in-use":
+        return "This Google account is already linked to another user account.";
       case "auth/weak-password":
         return "Password is too weak. Please use at least 6 characters.";
       case "auth/invalid-email":
@@ -218,7 +235,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      // If there was a pending Google credential from a previous attempt, link it now
+      if (pendingGoogleCred && res.user) {
+        try {
+          await linkWithCredential(res.user, pendingGoogleCred);
+          setPendingGoogleCred(null);
+          await syncUserProfile(res.user);
+        } catch (linkErr) {
+          console.warn("Could not automatically link pending Google credential:", linkErr);
+        }
+      }
     } catch (err) {
       const msg = parseAuthError(err);
       setAuthError(msg);
@@ -234,6 +261,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      if (err?.code === "auth/account-exists-with-different-credential") {
+        const cred = GoogleAuthProvider.credentialFromError(err);
+        if (cred) setPendingGoogleCred(cred);
+        const emailHint = err.customData?.email || "your email";
+        const msg = `An account for ${emailHint} already exists with password. Please sign in with your email & password to link your Google account.`;
+        setAuthError(msg);
+        throw new Error(msg);
+      }
+      const msg = parseAuthError(err);
+      setAuthError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 3b. One-Click Link Google Account (when already logged in with email/password)
+  const linkGoogleAccount = async () => {
+    if (!auth.currentUser) throw new Error("User must be logged in to link account.");
+    setLoading(true);
+    setAuthError(null);
+    try {
+      const res = await linkWithPopup(auth.currentUser, googleProvider);
+      setUser(res.user);
+      await syncUserProfile(res.user);
     } catch (err) {
       const msg = parseAuthError(err);
       setAuthError(msg);
@@ -320,10 +373,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         authError,
+        isGoogleLinked,
+        isPasswordLinked,
         clearError,
         signupWithEmail,
         loginWithEmail,
         loginWithGoogle,
+        linkGoogleAccount,
         logout,
         updateDisplayName,
         updateProfileData,

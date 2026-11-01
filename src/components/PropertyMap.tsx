@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { PropertyDetail } from "./PropertyDetailModal";
-import { getCoordinatesForLocality, parseValidCoordinates, CITY_BASE_COORDINATES } from "@/lib/localities";
+import { parseValidCoordinates, CITY_BASE_COORDINATES } from "@/lib/localities";
+import { X, MapPin, Phone, MessageCircle, ChevronRight } from "lucide-react";
 
 export interface PropertyMapProps {
   properties: PropertyDetail[];
@@ -11,6 +12,8 @@ export interface PropertyMapProps {
   hoveredPropertyId?: string | null;
   panToCoordinate?: [number, number] | null;
   onSelectProperty: (property: PropertyDetail) => void;
+  mobileView?: "list" | "map";
+  onActivePreviewChange?: (property: PropertyDetail | null) => void;
 }
 
 export const CITY_COORDINATES = CITY_BASE_COORDINATES;
@@ -22,6 +25,8 @@ export default function PropertyMap({
   hoveredPropertyId,
   panToCoordinate,
   onSelectProperty,
+  mobileView,
+  onActivePreviewChange,
 }: PropertyMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +35,7 @@ export default function PropertyMap({
   const markersRef = useRef<Record<string, any>>({});
   const [searchAsMove, setSearchAsMove] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [activePreview, setActivePreview] = useState<PropertyDetail | null>(null);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -44,8 +50,8 @@ export default function PropertyMap({
       if (!isMounted || !mapContainerRef.current) return;
       if (mapInstanceRef.current) return;
 
-      const defaultCenter = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["All"];
-      const defaultZoom = selectedCity === "All" ? 10 : 13;
+      const defaultCenter = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["Nahan"] || [30.5599, 77.2955];
+      const defaultZoom = selectedCity === "All" ? 11 : 13.5;
 
       const map = L.map(mapContainerRef.current, {
         center: defaultCenter,
@@ -62,8 +68,21 @@ export default function PropertyMap({
         maxZoom: 19,
       }).addTo(map);
 
+      // Close preview when tapping map background
+      map.on("click", () => {
+        setActivePreview(null);
+        onActivePreviewChange?.(null);
+      });
+
       mapInstanceRef.current = map;
       setMapLoaded(true);
+
+      // Ensure tiles load completely on mobile
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 200);
     }
 
     initMap();
@@ -77,31 +96,46 @@ export default function PropertyMap({
     };
   }, []);
 
+  // Invalidate map size when switching between list and map views on mobile
+  useEffect(() => {
+    if (mapInstanceRef.current && mobileView === "map") {
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 120);
+    }
+  }, [mobileView]);
+
   // Update center when city changes
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    const center = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["All"];
-    const zoom = selectedCity === "All" ? 10 : 13;
-    mapInstanceRef.current.flyTo(center, zoom, { duration: 1.2 });
+    try {
+      const center = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["Nahan"] || [30.5599, 77.2955];
+      const zoom = selectedCity === "All" ? 11 : 13.5;
+      mapInstanceRef.current.flyTo(center, zoom, { duration: 1.2 });
+    } catch {}
   }, [selectedCity]);
 
   // Fly to coordinate when searched or clicked
   useEffect(() => {
     if (!mapInstanceRef.current || !panToCoordinate) return;
-    mapInstanceRef.current.flyTo(panToCoordinate, 15, { duration: 1.2 });
+    try {
+      mapInstanceRef.current.flyTo(panToCoordinate, 15, { duration: 1.2 });
+    } catch {}
   }, [panToCoordinate]);
 
   // Center on selected property
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedProperty) return;
-    const exactCoord = parseValidCoordinates(
-      selectedProperty.coordinates,
-      selectedProperty.city,
-      selectedProperty.locality
-    );
-    if (exactCoord && !isNaN(exactCoord[0]) && !isNaN(exactCoord[1])) {
-      mapInstanceRef.current.flyTo(exactCoord, 15, { duration: 1.0 });
-    }
+    try {
+      const exactCoord = parseValidCoordinates(
+        selectedProperty.coordinates,
+        selectedProperty.city,
+        selectedProperty.locality
+      );
+      if (exactCoord && !isNaN(exactCoord[0]) && !isNaN(exactCoord[1])) {
+        mapInstanceRef.current.panTo(exactCoord, { animate: true, duration: 0.8 });
+      }
+    } catch {}
   }, [selectedProperty]);
 
   // Update Markers for properties
@@ -133,7 +167,7 @@ export default function PropertyMap({
         if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
 
         const isHovered = hoveredPropertyId === prop.id;
-        const isSelected = selectedProperty?.id === prop.id;
+        const isSelected = selectedProperty?.id === prop.id || activePreview?.id === prop.id;
 
         const formattedRent = prop.price >= 1000 ? `₹${(prop.price / 1000).toFixed(0)}k` : `₹${prop.price}`;
 
@@ -151,38 +185,12 @@ export default function PropertyMap({
 
         const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
 
-        // Click popup
-        const photoUrl = prop.photos?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80";
-        
-        const popupContent = `
-          <div class="map-popup-card">
-            <div class="map-popup-img" style="background-image: url('${photoUrl}');"></div>
-            <div class="map-popup-info">
-              <h4 class="map-popup-title">${prop.title}</h4>
-              <p class="map-popup-location">${prop.locality ? `${prop.locality}, ${prop.city}` : prop.city}</p>
-              <div class="map-popup-bottom">
-                <span class="map-popup-price">₹${prop.price.toLocaleString("en-IN")}/mo</span>
-                <button class="map-popup-btn" id="btn-popup-${prop.id}">View Details</button>
-              </div>
-            </div>
-          </div>
-        `;
-
-        marker.bindPopup(popupContent, {
-          closeButton: false,
-          className: "leaflet-custom-popup",
-          maxWidth: 240,
-        });
-
-        marker.on("popupopen", () => {
-          const btn = document.getElementById(`btn-popup-${prop.id}`);
-          if (btn) {
-            btn.onclick = () => onSelectProperty(prop);
-          }
-        });
-
-        marker.on("click", () => {
-          onSelectProperty(prop);
+        // Clicking a room marker brings up the room popup preview on screen without Leaflet dismiss
+        marker.on("click", (e: any) => {
+          if (L?.DomEvent) L.DomEvent.stopPropagation(e);
+          setActivePreview(prop);
+          onActivePreviewChange?.(prop);
+          map.panTo([lat, lng], { animate: true, duration: 0.5 });
         });
 
         markersRef.current[prop.id] = marker;
@@ -194,11 +202,11 @@ export default function PropertyMap({
     return () => {
       isCancelled = true;
     };
-  }, [properties, mapLoaded, hoveredPropertyId, selectedProperty, onSelectProperty]);
+  }, [properties, mapLoaded, hoveredPropertyId, selectedProperty, activePreview?.id, onSelectProperty, onActivePreviewChange]);
 
   return (
     <div className="property-map-wrapper">
-      {/* Search as I move the map toggle (Matches Roomster screenshot) */}
+      {/* Search as I move the map toggle (Matches Roomster layout) */}
       <div className="map-floating-header">
         <label className="search-as-move-toggle">
           <input
@@ -213,6 +221,79 @@ export default function PropertyMap({
 
       {/* The Leaflet Map DOM Node */}
       <div ref={mapContainerRef} className="leaflet-map-element" />
+
+      {/* Floating Room Preview Card on Map (Replaces bug-prone Leaflet HTML popups) */}
+      {activePreview && (
+        <div className="map-floating-preview-card animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="map-preview-close-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActivePreview(null);
+              onActivePreviewChange?.(null);
+            }}
+            aria-label="Close preview"
+          >
+            <X size={15} />
+          </button>
+
+          <div
+            className="map-preview-body"
+            onClick={() => onSelectProperty(activePreview)}
+          >
+            <div className="map-preview-thumb-wrap">
+              <img
+                src={activePreview.photos?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80"}
+                alt={activePreview.title}
+                className="map-preview-thumb"
+              />
+              <span className="map-preview-rent-badge">
+                ₹{activePreview.price.toLocaleString("en-IN")}/mo
+              </span>
+            </div>
+
+            <div className="map-preview-meta">
+              <h4 className="map-preview-title">{activePreview.title}</h4>
+              <p className="map-preview-loc">
+                <MapPin size={12} style={{ display: "inline", verticalAlign: "-1px", marginRight: "3px" }} />
+                {activePreview.locality ? `${activePreview.locality}, ${activePreview.city}` : activePreview.city}
+              </p>
+              <div className="map-preview-pills">
+                <span className="map-preview-pill">{activePreview.type || "Room set"}</span>
+                <span className="map-preview-pill">{activePreview.furnished || "Unfurnished"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="map-preview-btn-row">
+            <button
+              type="button"
+              className="btn-map-preview-view"
+              onClick={() => onSelectProperty(activePreview)}
+            >
+              <span>View Details</span>
+              <ChevronRight size={14} />
+            </button>
+            <a
+              href={`tel:${activePreview.ownerPhone}`}
+              className="btn-map-preview-call"
+              title="Call Owner"
+            >
+              <Phone size={14} />
+              <span>Call</span>
+            </a>
+            <a
+              href={`https://wa.me/${activePreview.ownerPhone.replace(/[^0-9]/g, "")}?text=Hi,%20I%20am%20interested%20in%20your%20room%20"${encodeURIComponent(activePreview.title)}"%20on%20Rent%20Himalayas`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-map-preview-whatsapp"
+              title="WhatsApp Owner"
+            >
+              <MessageCircle size={15} />
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

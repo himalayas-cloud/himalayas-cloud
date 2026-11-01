@@ -158,7 +158,7 @@ export const HIMACHAL_DISTRICT_DATA: Record<string, { center: [number, number]; 
 
 // Flattened base coordinates lookup for instant center lookup
 export const CITY_BASE_COORDINATES: Record<string, [number, number]> = {
-  All: [30.8200, 77.2000],
+  All: [30.5599, 77.2955],
   // District Centers
   Sirmaur: [30.5599, 77.2955],
   Solan: [30.9084, 77.0999],
