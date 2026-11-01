@@ -275,7 +275,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const authUpdates: { displayName?: string; photoURL?: string } = {};
       if (updates.displayName !== undefined) authUpdates.displayName = updates.displayName;
-      if (updates.photoURL !== undefined) authUpdates.photoURL = updates.photoURL;
+      // Firebase Auth photoURL attribute has a strict 2048-char limit.
+      // Data URLs are stored in Firestore users/{uid} document, which has no 2KB limit.
+      if (updates.photoURL !== undefined && updates.photoURL.length < 2000 && !updates.photoURL.startsWith("data:")) {
+        authUpdates.photoURL = updates.photoURL;
+      }
 
       if (Object.keys(authUpdates).length > 0) {
         await updateFirebaseProfile(user, authUpdates);
