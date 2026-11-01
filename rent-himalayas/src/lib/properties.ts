@@ -51,8 +51,61 @@ export async function createPropertyListing(
 export function subscribeOwnerProperties(
   ownerUid: string,
   onUpdate: (properties: PropertyListing[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  ownerEmail?: string | null
 ) {
+  if (ownerEmail) {
+    let propsByUid: PropertyListing[] = [];
+    let propsByEmail: PropertyListing[] = [];
+
+    const mergeAndEmit = () => {
+      const map = new Map<string, PropertyListing>();
+      [...propsByUid, ...propsByEmail].forEach((p) => {
+        if (p.id) map.set(p.id, p);
+      });
+      const merged = Array.from(map.values());
+      merged.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      onUpdate(merged);
+    };
+
+    const unsubUid = onSnapshot(
+      query(collection(db, PROPERTIES_COLLECTION), where("ownerUid", "==", ownerUid)),
+      (snapshot) => {
+        propsByUid = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<PropertyListing, "id">),
+        }));
+        mergeAndEmit();
+      },
+      (err) => {
+        if (onError) onError(err);
+      }
+    );
+
+    const unsubEmail = onSnapshot(
+      query(collection(db, PROPERTIES_COLLECTION), where("ownerEmail", "==", ownerEmail)),
+      (snapshot) => {
+        propsByEmail = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<PropertyListing, "id">),
+        }));
+        mergeAndEmit();
+      },
+      (err) => {
+        console.warn("Owner email query fallback:", err);
+      }
+    );
+
+    return () => {
+      unsubUid();
+      unsubEmail();
+    };
+  }
+
   const q = query(
     collection(db, PROPERTIES_COLLECTION),
     where("ownerUid", "==", ownerUid)

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/context/AuthContext";
@@ -10,12 +10,8 @@ import {
   User as UserIcon,
   X,
   Phone,
-  ShieldCheck,
-  ShieldAlert,
   LogOut,
   ChevronDown,
-  CheckCircle,
-  MessageCircle,
   PlusCircle,
   Home,
   LayoutGrid,
@@ -26,7 +22,6 @@ import {
   Camera,
   ChevronRight,
 } from "lucide-react";
-import { ConfirmationResult } from "firebase/auth";
 import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
 import {
@@ -228,6 +223,49 @@ const DUMMY_PROPERTIES: Property[] = [
   },
 ];
 
+/**
+ * Fast client-side image compression using HTML5 Canvas.
+ * Produces ultra-compact JPEG (~15KB) for instant loading and minimal storage footprint.
+ */
+function compressImage(file: File, maxDim = 256, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function HomePage() {
   const {
     user,
@@ -238,12 +276,8 @@ export default function HomePage() {
     signupWithEmail,
     loginWithEmail,
     loginWithGoogle,
-    setupRecaptcha,
-    sendPhoneOtp,
-    verifyPhoneOtp,
     logout,
-    updateDisplayName,
-    testAdminPrivilegeEscalation,
+    updateProfileData,
   } = useAuth();
 
   // Navigation & Filter state
@@ -274,7 +308,6 @@ export default function HomePage() {
 
   // Modals state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authTab, setAuthTab] = useState<"email" | "phone">("email");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isOwnerDashboardOpen, setIsOwnerDashboardOpen] = useState(false);
@@ -286,27 +319,25 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
 
-  // Phone form state
-  const [phoneNumber, setPhoneNumber] = useState("+91 99999 99999");
-  const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [otpSent, setOtpSent] = useState(false);
-
-  // Security test feedback
-  const [securityTestResult, setSecurityTestResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-
-  // Edit name in profile
+  // Customer Profile Edit State
   const [editName, setEditName] = useState("");
-  const [isSavingName, setIsSavingName] = useState(false);
+  const [editPhone, setEditPhone] = useState("");
+  const [editPhotoUrl, setEditPhotoUrl] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (profile?.displayName) {
-      setEditName(profile.displayName);
+    if (profile) {
+      setEditName(profile.displayName || "");
+      setEditPhone(profile.phoneNumber || "");
+      setEditPhotoUrl(profile.photoURL || "");
+    } else if (user) {
+      setEditName(user.displayName || "");
+      setEditPhone(user.phoneNumber || "");
+      setEditPhotoUrl(user.photoURL || "");
     }
-  }, [profile]);
+  }, [profile, user]);
 
   // Fetch edge-cached published properties from Next.js API route
   const loadProperties = async () => {
@@ -356,8 +387,6 @@ export default function HomePage() {
   const handleCloseAuth = () => {
     setIsAuthModalOpen(false);
     clearError();
-    setOtpSent(false);
-    setConfirmationResult(null);
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -383,43 +412,33 @@ export default function HomePage() {
     }
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const verifier = setupRecaptcha("recaptcha-container");
-      const confirmation = await sendPhoneOtp(phoneNumber, verifier);
-      setConfirmationResult(confirmation);
-      setOtpSent(true);
-    } catch {
-      // Error handled in AuthContext
+      const compressedDataUrl = await compressImage(file, 256, 0.8);
+      setEditPhotoUrl(compressedDataUrl);
+    } catch (err) {
+      console.error("Avatar compression error:", err);
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!confirmationResult) return;
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    setProfileSuccessMsg("");
     try {
-      await verifyPhoneOtp(confirmationResult, otpCode);
-      handleCloseAuth();
-    } catch {
-      // Error handled in AuthContext
-    }
-  };
-
-  const handleSaveName = async () => {
-    if (!editName.trim()) return;
-    setIsSavingName(true);
-    try {
-      await updateDisplayName(editName);
+      await updateProfileData({
+        displayName: editName.trim(),
+        phoneNumber: editPhone.trim(),
+        photoURL: editPhotoUrl,
+      });
+      setProfileSuccessMsg("Profile details saved successfully!");
+      setTimeout(() => setProfileSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error("Save profile error:", err);
     } finally {
-      setIsSavingName(false);
+      setIsSavingProfile(false);
     }
-  };
-
-  const handleRunSecurityTest = async () => {
-    setSecurityTestResult(null);
-    const res = await testAdminPrivilegeEscalation();
-    setSecurityTestResult(res);
   };
 
   // Combine live Firestore listings with starter dummy properties (avoiding duplicates)
@@ -492,9 +511,6 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
-      {/* Invisible reCAPTCHA container for Phone Auth */}
-      <div id="recaptcha-container"></div>
-
       {/* 1. Header with updated Logo */}
       <header className="app-header">
         <div className="logo-group">
@@ -556,25 +572,47 @@ export default function HomePage() {
             <span>Rent Your Room</span>
           </button>
 
-          {loading ? (
-            <span className="text-muted" style={{ fontSize: "0.85rem" }}>
-              Loading...
-            </span>
-          ) : user ? (
+          {loading && !profile ? (
+            <div
+              style={{
+                width: "90px",
+                height: "36px",
+                borderRadius: "20px",
+                background: "#F1F5F9",
+              }}
+            />
+          ) : (user || profile) ? (
             <div
               className="user-badge-pill"
               onClick={() => setIsProfileModalOpen(true)}
-              title="Click to view Firestore Profile & Security Info"
+              title="Click to view & edit your profile"
             >
-              <div className="user-avatar-circle">
-                {profile?.displayName
-                  ? profile.displayName.charAt(0).toUpperCase()
-                  : user.email
-                  ? user.email.charAt(0).toUpperCase()
-                  : "U"}
+              <div
+                className="user-avatar-circle"
+                style={{
+                  overflow: "hidden",
+                  position: "relative",
+                  background: (profile?.photoURL || editPhotoUrl) ? "transparent" : "var(--primary)",
+                }}
+              >
+                {(profile?.photoURL || editPhotoUrl) ? (
+                  <img
+                    src={profile?.photoURL || editPhotoUrl}
+                    alt={profile?.displayName || "Avatar"}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  profile?.displayName
+                    ? profile.displayName.charAt(0).toUpperCase()
+                    : profile?.email
+                    ? profile.email.charAt(0).toUpperCase()
+                    : user?.email
+                    ? user.email.charAt(0).toUpperCase()
+                    : "U"
+                )}
               </div>
               <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#191E24" }}>
-                {profile?.displayName || user.email?.split("@")[0] || user.phoneNumber || "My Account"}
+                {profile?.displayName || user?.displayName || profile?.email?.split("@")[0] || user?.email?.split("@")[0] || "My Account"}
               </span>
             </div>
           ) : (
@@ -1156,184 +1194,103 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* AUTH MODAL */}
+      {/* AUTH MODAL (CLEAN EMAIL/PASSWORD & GOOGLE AUTH) */}
       {isAuthModalOpen && (
         <div className="modal-overlay animate-fade-in" onClick={handleCloseAuth}>
           <div
             className="modal-dialog animate-slide-down"
             onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "440px", padding: "26px" }}
           >
             <button className="modal-close-btn" onClick={handleCloseAuth}>
               <X size={20} />
             </button>
 
-            <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "4px" }}>
-              {authTab === "email"
-                ? isSignUp
-                  ? "Create Your Account"
-                  : "Welcome Back"
-                : "Phone Verification"}
+            <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "4px", color: "#191E24" }}>
+              {isSignUp ? "Create Your Account" : "Welcome Back"}
             </h2>
             <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "20px" }}>
               Access verified rentals and direct owner contacts in Himachal.
             </p>
 
-            {/* Provider Tabs */}
-            <div className="auth-tabs">
-              <button
-                className={`auth-tab-btn ${authTab === "email" ? "active" : ""}`}
-                onClick={() => {
-                  setAuthTab("email");
-                  clearError();
-                }}
-              >
-                Email / Password
-              </button>
-              <button
-                className={`auth-tab-btn ${authTab === "phone" ? "active" : ""}`}
-                onClick={() => {
-                  setAuthTab("phone");
-                  clearError();
-                }}
-              >
-                Phone OTP
-              </button>
-            </div>
-
             {authError && <div className="alert-error">{authError}</div>}
 
-            {/* TAB 1: EMAIL / PASSWORD */}
-            {authTab === "email" && (
-              <form onSubmit={handleEmailAuth}>
-                {isSignUp && (
-                  <div className="form-group">
-                    <label className="form-label">Full Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Vishal Verma"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-
+            <form onSubmit={handleEmailAuth}>
+              {isSignUp && (
                 <div className="form-group">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">Full Name</label>
                   <input
-                    type="email"
+                    type="text"
                     className="form-input"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g. Vishal Verma"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                   />
                 </div>
+              )}
 
-                <div className="form-group">
-                  <label className="form-label">Password</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="Minimum 6 characters"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading
-                    ? "Please wait..."
-                    : isSignUp
-                    ? "Create Account"
-                    : "Sign In"}
-                </button>
-
-                <div style={{ textAlign: "center", marginTop: "14px", fontSize: "0.88rem" }}>
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                  </span>
-                  <button
-                    type="button"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--primary)",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      setIsSignUp(!isSignUp);
-                      clearError();
-                    }}
-                  >
-                    {isSignUp ? "Sign In" : "Sign Up"}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* TAB 2: PHONE OTP */}
-            {authTab === "phone" && (
-              <div>
-                <div className="alert-info">
-                  <strong>Development Note:</strong> Firebase Spark tier has a strict SMS limit.
-                  Use your configured test number <code>+91 99999 99999</code> with code <code>123456</code> for instant, quota-free login!
-                </div>
-
-                {!otpSent ? (
-                  <form onSubmit={handleSendOtp}>
-                    <div className="form-group">
-                      <label className="form-label">Phone Number (with country code)</label>
-                      <input
-                        type="tel"
-                        className="form-input"
-                        placeholder="+91 99999 99999"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <button type="submit" className="btn-primary" disabled={loading}>
-                      {loading ? "Sending OTP..." : "Send Verification Code"}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyOtp}>
-                    <div className="form-group">
-                      <label className="form-label">Enter 6-Digit OTP</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="123456"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <button type="submit" className="btn-primary" disabled={loading}>
-                      {loading ? "Verifying..." : "Verify & Sign In"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ marginTop: "10px" }}
-                      onClick={() => setOtpSent(false)}
-                    >
-                      Change Phone Number
-                    </button>
-                  </form>
-                )}
+              <div className="form-group">
+                <label className="form-label">Email Address</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-            )}
 
-            <div className="auth-divider">Or continue with</div>
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="Minimum 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={loading}
+                style={{ width: "100%", padding: "12px", fontWeight: 700, fontSize: "0.95rem" }}
+              >
+                {loading
+                  ? "Please wait..."
+                  : isSignUp
+                  ? "Create Account"
+                  : "Sign In"}
+              </button>
+
+              <div style={{ textAlign: "center", marginTop: "16px", fontSize: "0.88rem" }}>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
+                </span>
+                <button
+                  type="button"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--primary)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    clearError();
+                  }}
+                >
+                  {isSignUp ? "Sign In" : "Sign Up"}
+                </button>
+              </div>
+            </form>
+
+            <div className="auth-divider" style={{ margin: "20px 0" }}>Or continue with</div>
 
             {/* GOOGLE SIGN IN */}
             <button
@@ -1341,6 +1298,7 @@ export default function HomePage() {
               className="btn-google"
               onClick={handleGoogleAuth}
               disabled={loading}
+              style={{ width: "100%" }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path
@@ -1366,120 +1324,174 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* USER PROFILE & FIRESTORE SECURITY CONSOLE MODAL */}
-      {isProfileModalOpen && user && (
+      {/* USER PROFILE MODAL (CUSTOMER-FACING) */}
+      {isProfileModalOpen && (user || profile) && (
         <div className="modal-overlay animate-fade-in" onClick={() => setIsProfileModalOpen(false)}>
           <div
             className="modal-dialog animate-slide-down"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "520px" }}
+            style={{ maxWidth: "460px", padding: "26px" }}
           >
             <button className="modal-close-btn" onClick={() => setIsProfileModalOpen(false)}>
               <X size={20} />
             </button>
 
-            <h2 style={{ fontSize: "1.35rem", fontWeight: 800, marginBottom: "4px" }}>
-              My Profile & Security Info
+            <h2 style={{ fontSize: "1.35rem", fontWeight: 800, marginBottom: "4px", color: "#191E24" }}>
+              My Profile
             </h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "16px" }}>
-              Live record from Cloud Firestore (<code>users/{user.uid}</code>).
+            <p style={{ fontSize: "0.85rem", color: "#64748B", marginBottom: "20px" }}>
+              Manage your personal information and contact details.
             </p>
 
-            <div className="profile-card">
-              <div className="profile-field-row">
-                <span className="profile-field-label">Firebase UID</span>
-                <span className="profile-field-value" style={{ fontSize: "0.78rem" }}>
-                  {user.uid}
-                </span>
+            {/* Profile Avatar Upload & Change */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "22px" }}>
+              <div
+                style={{
+                  width: "88px",
+                  height: "88px",
+                  borderRadius: "50%",
+                  background: (editPhotoUrl || profile?.photoURL) ? "transparent" : "var(--primary)",
+                  border: "3px solid #FFFFFF",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "2rem",
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  overflow: "hidden",
+                  position: "relative",
+                  marginBottom: "8px",
+                }}
+              >
+                {(editPhotoUrl || profile?.photoURL) ? (
+                  <img
+                    src={editPhotoUrl || profile?.photoURL || ""}
+                    alt="Profile Avatar"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : editName ? (
+                  editName.charAt(0).toUpperCase()
+                ) : user?.email ? (
+                  user.email.charAt(0).toUpperCase()
+                ) : (
+                  "U"
+                )}
               </div>
 
-              <div className="profile-field-row">
-                <span className="profile-field-label">Email</span>
-                <span className="profile-field-value">{user.email || "Not linked"}</span>
-              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleAvatarSelect}
+              />
 
-              <div className="profile-field-row">
-                <span className="profile-field-label">Phone</span>
-                <span className="profile-field-value">{user.phoneNumber || "Not linked"}</span>
-              </div>
-
-              <div className="profile-field-row">
-                <span className="profile-field-label">System Role</span>
-                <span className="profile-field-value">
-                  <span className={`security-badge ${profile?.role || "user"}`}>
-                    {profile?.role || "user"}
-                  </span>
-                </span>
-              </div>
-
-              <div className="profile-field-row">
-                <span className="profile-field-label">Auth Provider</span>
-                <span className="profile-field-value">
-                  {user.providerData.map((p) => p.providerId).join(", ") || "Phone/Custom"}
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                style={{
+                  background: "#F1F5F9",
+                  border: "1px solid #CBD5E1",
+                  borderRadius: "20px",
+                  padding: "5px 14px",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  color: "#334155",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s",
+                }}
+              >
+                <Camera size={13} />
+                <span>{(editPhotoUrl || profile?.photoURL) ? "Change Photo" : "Upload Photo"}</span>
+              </button>
             </div>
 
-            {/* Editable Profile Name */}
-            <div className="form-group">
-              <label className="form-label">Display Name</label>
-              <div style={{ display: "flex", gap: "8px" }}>
+            {profileSuccessMsg && (
+              <div
+                style={{
+                  background: "#F0FDF4",
+                  border: "1px solid #BBF7D0",
+                  color: "#166534",
+                  padding: "9px 12px",
+                  borderRadius: "8px",
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  marginBottom: "16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Check size={15} />
+                <span>{profileSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Editable Fields */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "22px" }}>
+              <div>
+                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "4px" }}>
+                  Full Name
+                </label>
                 <input
                   type="text"
                   className="form-input"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Enter your name"
+                  placeholder="e.g. Vishal Verma"
                 />
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ width: "auto", padding: "8px 16px", whiteSpace: "nowrap" }}
-                  onClick={handleSaveName}
-                  disabled={isSavingName}
-                >
-                  {isSavingName ? "Saving..." : "Save"}
-                </button>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "4px" }}>
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="+91 98160 12345"
+                />
+                <span style={{ fontSize: "0.72rem", color: "#94A3B8", marginTop: "3px", display: "block" }}>
+                  Used for direct inquiries and landlord contact.
+                </span>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "4px" }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={user?.email || profile?.email || ""}
+                  disabled
+                  style={{ background: "#F8FAFC", color: "#64748B", cursor: "not-allowed" }}
+                />
+                <span style={{ fontSize: "0.72rem", color: "#94A3B8", marginTop: "3px", display: "block" }}>
+                  Linked to your account and cannot be modified.
+                </span>
               </div>
             </div>
 
-            {/* SECURITY RULE VERIFICATION SECTION */}
-            <div style={{ marginTop: "20px", borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
-              <h4 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                <ShieldCheck size={18} color="var(--primary)" />
-                <span>Security Rules Verification</span>
-              </h4>
-              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "12px" }}>
-                Click below to simulate a malicious client trying to escalate their role to <code>admin</code>. Firestore Security Rules should actively reject this write.
-              </p>
+            {/* Save Changes Button */}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleSaveProfile}
+              disabled={isSavingProfile}
+              style={{ width: "100%", padding: "11px", fontSize: "0.92rem", fontWeight: 700 }}
+            >
+              {isSavingProfile ? "Saving Changes..." : "Save Changes"}
+            </button>
 
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleRunSecurityTest}
-                style={{ fontSize: "0.85rem", marginBottom: "12px" }}
-              >
-                Test Security: Attempt Admin Escalation
-              </button>
-
-              {securityTestResult && (
-                <div className={securityTestResult.success ? "alert-success" : "alert-error"}>
-                  {securityTestResult.success ? (
-                    <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-                      <CheckCircle size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
-                      <span>{securityTestResult.message}</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-                      <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
-                      <span>{securityTestResult.message}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginTop: "16px" }}>
+            {/* Sign Out Button */}
+            <div style={{ marginTop: "12px" }}>
               <button
                 type="button"
                 className="btn-danger"
@@ -1487,9 +1499,10 @@ export default function HomePage() {
                   await logout();
                   setIsProfileModalOpen(false);
                 }}
+                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "10px" }}
               >
-                <LogOut size={16} style={{ display: "inline", marginRight: "6px" }} />
-                Sign Out
+                <LogOut size={16} />
+                <span>Sign Out</span>
               </button>
             </div>
           </div>

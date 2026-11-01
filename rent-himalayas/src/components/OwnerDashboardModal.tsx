@@ -125,11 +125,12 @@ export default function OwnerDashboardModal({
         } else {
           setError(err.message);
         }
-      }
+      },
+      user.email
     );
 
     return () => unsubscribe();
-  }, [isOpen, user.uid]);
+  }, [isOpen, user.uid, user.email]);
 
   if (!isOpen) return null;
 
@@ -388,36 +389,18 @@ export default function OwnerDashboardModal({
               background: "#FFFBEB",
               border: "1px solid #FCD34D",
               borderRadius: "10px",
-              padding: "14px 16px",
+              padding: "12px 16px",
               marginBottom: "16px",
               color: "#92400E",
-              fontSize: "0.88rem",
+              fontSize: "0.85rem",
               lineHeight: 1.5,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, marginBottom: "4px" }}>
-              <AlertTriangle size={18} color="#D97706" />
-              <span>Action Required in Firebase Console: Publish Security Rules</span>
-            </div>
-            <p style={{ margin: "4px 0" }}>
-              Your Firestore Database is currently blocking requests because the production rules have not been published in the console yet.
-            </p>
-            <ol style={{ paddingLeft: "20px", marginTop: "6px", fontSize: "0.84rem" }}>
-              <li>Open <strong>Firebase Console &rarr; Firestore Database &rarr; Rules</strong> tab.</li>
-              <li>Replace existing content with:
-                <pre style={{ background: "#FDE68A", padding: "6px", borderRadius: "6px", marginTop: "4px", fontSize: "0.78rem" }}>
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}`}
-                </pre>
-              </li>
-              <li>Click <strong>Publish</strong>. Once published, your listings will load immediately!</li>
-            </ol>
+            <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0 }} />
+            <span>Unable to publish listing. Please check your internet connection and try again.</span>
           </div>
         )}
 

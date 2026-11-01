@@ -8,9 +8,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  signInWithPhoneNumber,
-  RecaptchaVerifier,
-  ConfirmationResult,
   updateProfile as updateFirebaseProfile,
   AuthError,
 } from "firebase/auth";
@@ -19,11 +16,17 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { UserProfile } from "@/types";
+
+const CACHE_PROFILE_KEY = "rh_user_profile_cache";
 
 interface AuthContextType {
   user: User | null;
@@ -34,25 +37,33 @@ interface AuthContextType {
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  setupRecaptcha: (elementId: string) => RecaptchaVerifier;
-  sendPhoneOtp: (phoneNumber: string, verifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
-  verifyPhoneOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
   logout: () => Promise<void>;
   updateDisplayName: (newName: string) => Promise<void>;
-  testAdminPrivilegeEscalation: () => Promise<{ success: boolean; message: string }>;
+  updateProfileData: (updates: { displayName?: string; phoneNumber?: string; photoURL?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // Synchronously hydrate profile from localStorage so it renders instantly on page load
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(CACHE_PROFILE_KEY);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const clearError = () => setAuthError(null);
 
-  // Helper to map Firebase errors to clear, beginner-friendly messages
+  // Helper to map Firebase errors to clear, user-friendly messages
   const parseAuthError = (err: unknown): string => {
     const error = err as AuthError;
     if (!error.code) return error.message || "An unexpected error occurred.";
@@ -67,14 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Password is too weak. Please use at least 6 characters.";
       case "auth/invalid-email":
         return "Please enter a valid email address.";
-      case "auth/invalid-phone-number":
-        return "Invalid phone number format. Please include country code (e.g., +91 99999 99999).";
-      case "auth/code-expired":
-        return "The OTP code has expired. Please request a new one.";
-      case "auth/invalid-verification-code":
-        return "Incorrect OTP code. Please check and try again.";
-      case "auth/quota-exceeded":
-        return "SMS quota exceeded. Please use the configured test phone number for development (+91 99999 99999).";
       case "auth/popup-closed-by-user":
         return "Sign-in popup was closed before completing.";
       case "permission-denied":
@@ -84,20 +87,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync or create user profile in Firestore
+  // Sync or create user profile in Firestore (with automatic email-based profile inheritance)
   const syncUserProfile = async (firebaseUser: User, explicitName?: string) => {
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
+        // If user signs in with Google after email/password (or vice-versa), inherit existing profile
+        let inheritedData: Partial<UserProfile> = {};
+        if (firebaseUser.email) {
+          try {
+            const q = query(
+              collection(db, "users"),
+              where("email", "==", firebaseUser.email)
+            );
+            const existingSnap = await getDocs(q);
+            if (!existingSnap.empty) {
+              const oldData = existingSnap.docs[0].data() as UserProfile;
+              inheritedData = {
+                displayName: oldData.displayName,
+                phoneNumber: oldData.phoneNumber,
+                photoURL: oldData.photoURL,
+                role: oldData.role || "user",
+              };
+            }
+          } catch (e) {
+            console.warn("Could not query existing profile by email:", e);
+          }
+        }
+
         const newProfileData: Record<string, unknown> = {
           uid: firebaseUser.uid,
-          displayName: explicitName || firebaseUser.displayName || null,
+          displayName: explicitName || inheritedData.displayName || firebaseUser.displayName || null,
           email: firebaseUser.email || null,
-          phoneNumber: firebaseUser.phoneNumber || null,
-          photoURL: firebaseUser.photoURL || null,
-          role: "user",
+          phoneNumber: inheritedData.phoneNumber || firebaseUser.phoneNumber || null,
+          photoURL: inheritedData.photoURL || firebaseUser.photoURL || null,
+          role: inheritedData.role || "user",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
@@ -105,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         await updateDoc(userRef, {
           updatedAt: serverTimestamp(),
-          // update displayName or photo if they changed in provider
           ...(firebaseUser.displayName && { displayName: firebaseUser.displayName }),
           ...(firebaseUser.photoURL && { photoURL: firebaseUser.photoURL }),
           ...(firebaseUser.phoneNumber && { phoneNumber: firebaseUser.phoneNumber }),
@@ -130,15 +155,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Real-time snapshot listener on user's profile
         const userRef = doc(db, "users", currentUser.uid);
-        unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+        unsubscribeProfile = onSnapshot(
+          userRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data() as UserProfile;
+              setProfile(data);
+              if (typeof window !== "undefined") {
+                try {
+                  localStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(data));
+                } catch {}
+              }
+            }
+          },
+          (err) => {
+            console.error("Firestore snapshot error:", err);
           }
-        }, (err) => {
-          console.error("Firestore snapshot error:", err);
-        });
+        );
       } else {
         setProfile(null);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem(CACHE_PROFILE_KEY);
+          } catch {}
+        }
         if (unsubscribeProfile) {
           unsubscribeProfile();
           unsubscribeProfile = null;
@@ -203,63 +243,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 4. Setup Recaptcha for Phone Auth
-  const setupRecaptcha = (elementId: string): RecaptchaVerifier => {
-    if (typeof window === "undefined") {
-      throw new Error("Recaptcha can only be initialized on the client side.");
-    }
-    // Clear any existing recaptcha widget
-    const container = document.getElementById(elementId);
-    if (container) container.innerHTML = "";
-
-    const verifier = new RecaptchaVerifier(auth, elementId, {
-      size: "invisible",
-      callback: () => {
-        // reCAPTCHA solved
-      },
-      "expired-callback": () => {
-        setAuthError("reCAPTCHA expired. Please retry.");
-      },
-    });
-    return verifier;
-  };
-
-  // 5. Send Phone OTP
-  const sendPhoneOtp = async (phoneNumber: string, verifier: RecaptchaVerifier) => {
-    setLoading(true);
-    setAuthError(null);
-    try {
-      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
-      return confirmationResult;
-    } catch (err) {
-      const msg = parseAuthError(err);
-      setAuthError(msg);
-      throw new Error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 6. Verify Phone OTP
-  const verifyPhoneOtp = async (confirmationResult: ConfirmationResult, otp: string) => {
-    setLoading(true);
-    setAuthError(null);
-    try {
-      await confirmationResult.confirm(otp);
-    } catch (err) {
-      const msg = parseAuthError(err);
-      setAuthError(msg);
-      throw new Error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 7. Sign Out
+  // 4. Sign Out
   const logout = async () => {
     setLoading(true);
     setAuthError(null);
     try {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(CACHE_PROFILE_KEY);
+        } catch {}
+      }
       await signOut(auth);
       setProfile(null);
       setUser(null);
@@ -270,17 +263,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 8. Update Display Name
-  const updateDisplayName = async (newName: string) => {
+  // 5. Update Profile Data (Name, Phone Number, Avatar URL)
+  const updateProfileData = async (updates: {
+    displayName?: string;
+    phoneNumber?: string;
+    photoURL?: string;
+  }) => {
     if (!user) throw new Error("User must be logged in.");
     setLoading(true);
     setAuthError(null);
     try {
-      await updateFirebaseProfile(user, { displayName: newName });
+      const authUpdates: { displayName?: string; photoURL?: string } = {};
+      if (updates.displayName !== undefined) authUpdates.displayName = updates.displayName;
+      if (updates.photoURL !== undefined) authUpdates.photoURL = updates.photoURL;
+
+      if (Object.keys(authUpdates).length > 0) {
+        await updateFirebaseProfile(user, authUpdates);
+      }
+
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
-        displayName: newName,
+        ...updates,
         updatedAt: serverTimestamp(),
+      });
+
+      setProfile((prev) => {
+        const next = prev ? { ...prev, ...updates } : null;
+        if (typeof window !== "undefined" && next) {
+          try {
+            localStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(next));
+          } catch {}
+        }
+        return next;
       });
     } catch (err) {
       const msg = parseAuthError(err);
@@ -291,26 +305,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 9. Security Rule Verification Test: Attempt Admin Escalation
-  // This verifies that Firestore Security Rules actively reject unauthorized role modifications.
-  const testAdminPrivilegeEscalation = async () => {
-    if (!user) return { success: false, message: "Please log in first to test security rules." };
-    try {
-      const userRef = doc(db, "users", user.uid);
-      // Attempt to maliciously escalate role to admin
-      await updateDoc(userRef, {
-        role: "admin",
-      });
-      return {
-        success: false,
-        message: "SECURITY WARNING: Privilege escalation succeeded! Rules need hardening.",
-      };
-    } catch (err) {
-      return {
-        success: true,
-        message: "PASSED: Firestore Security Rules blocked the admin escalation attempt (" + (err as Error).message + ").",
-      };
-    }
+  const updateDisplayName = async (newName: string) => {
+    return updateProfileData({ displayName: newName });
   };
 
   return (
@@ -324,12 +320,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signupWithEmail,
         loginWithEmail,
         loginWithGoogle,
-        setupRecaptcha,
-        sendPhoneOtp,
-        verifyPhoneOtp,
         logout,
         updateDisplayName,
-        testAdminPrivilegeEscalation,
+        updateProfileData,
       }}
     >
       {children}
