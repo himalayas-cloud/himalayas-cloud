@@ -332,15 +332,18 @@ export default function PropertyDetailModal({
             </div>
           </div>
 
-          {/* Space for fixed bottom bar on mobile */}
+          {/* Space for fixed bottom bar on mobile so last content is never hidden */}
           <div className="mobile-action-spacer" />
         </div>
 
-        {/* 3. STICKY CALL & WHATSAPP ACTION BAR (Optimized for Mobile) */}
+        {/* 3. STICKY CALL & WHATSAPP ACTION BAR (Premium, Spacious Mobile Bar) */}
         <div className="detail-sticky-action-bar">
           <div className="action-bar-rent-summary">
             <span className="action-rent-label">Monthly Rent</span>
-            <span className="action-rent-val">₹{property.price.toLocaleString("en-IN")}</span>
+            <span className="action-rent-val">
+              ₹{property.price.toLocaleString("en-IN")}
+              <span className="action-rent-mo">/mo</span>
+            </span>
           </div>
 
           <div className="action-bar-buttons">
@@ -348,9 +351,10 @@ export default function PropertyDetailModal({
             <a
               href={`tel:${property.ownerPhone}`}
               className="btn-modal-call"
+              title="Call Owner"
             >
-              <Phone size={18} />
-              <span>Call Owner</span>
+              <Phone size={16} />
+              <span>Call</span>
             </a>
 
             {/* Direct WhatsApp Chat */}
@@ -359,8 +363,9 @@ export default function PropertyDetailModal({
               target="_blank"
               rel="noreferrer"
               className="btn-modal-whatsapp"
+              title="Chat on WhatsApp"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={16} />
               <span>WhatsApp</span>
             </a>
           </div>

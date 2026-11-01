@@ -137,6 +137,9 @@ export default function PropertyDetailMap({
         border: "1.5px solid #E2E8F0",
         boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
         background: "#FFFFFF",
+        position: "relative",
+        zIndex: 1,
+        isolation: "isolate",
       }}
     >
       {/* Header with Location & Directions Button */}

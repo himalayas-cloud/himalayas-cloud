@@ -1197,7 +1197,7 @@ export default function HomePage() {
         !isProfileModalOpen &&
         !isOwnerDashboardOpen &&
         !isLocationModalOpen && (
-          <div className="mobile-view-toggle-bar animate-fade-in">
+          <div className="mobile-view-toggle-bar">
             <button
               className={`mobile-view-toggle-btn ${mobileView === "list" ? "active" : ""}`}
               onClick={() => {
