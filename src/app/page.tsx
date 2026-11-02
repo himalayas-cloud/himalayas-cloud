@@ -583,9 +583,9 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
-      {/* 1. Header with updated Logo */}
+      {/* 1. Header with Brand Logo, Actions, and Profile Icon on Extreme Right Corner */}
       <header className="app-header">
-        <div className="logo-group">
+        <div className="header-brand-wrap">
           <a
             href="#"
             className="brand-logo"
@@ -614,20 +614,9 @@ export default function HomePage() {
               Rent<span style={{ color: "var(--primary)" }}>Himalayas</span>
             </span>
           </a>
-
-          {/* Two-Tier Location Switcher Pill */}
-          <div
-            className="location-pill"
-            onClick={() => setIsLocationModalOpen(true)}
-            title="Click to select location across Sirmaur, Solan, Shimla, or all Himachal"
-          >
-            <MapPin size={16} className="text-primary" />
-            <span>{selectedCity === "All" ? "Himachal (All)" : selectedCity}</span>
-            <ChevronDown size={14} />
-          </div>
         </div>
 
-        <div className="header-actions">
+        <div className="header-nav-actions">
           {/* Become a Host / Rent Your Room button */}
           <button
             className="btn-host-navbar"
@@ -644,27 +633,53 @@ export default function HomePage() {
             <span>Rent Your Room</span>
           </button>
 
+          {/* Location Switcher Pill - Replaced profile option position */}
+          <div
+            className="location-pill"
+            onClick={() => setIsLocationModalOpen(true)}
+            title="Click to select location across Sirmaur, Solan, Shimla, or all Himachal"
+          >
+            <MapPin size={16} className="text-primary" />
+            <span className="location-pill-text">{selectedCity === "All" ? "Himachal (All)" : selectedCity}</span>
+            <ChevronDown size={14} />
+          </div>
+        </div>
+
+        {/* Profile icon on the extreme right corner with ONLY profile photo */}
+        <div className="header-profile-corner">
           {!isMounted || (loading && !profile) ? (
             <div
               style={{
-                width: "90px",
+                width: "36px",
                 height: "36px",
-                borderRadius: "20px",
+                borderRadius: "50%",
                 background: "#F1F5F9",
               }}
             />
           ) : (user || profile) ? (
             <div
-              className="user-badge-pill"
+              className="user-avatar-only-btn"
               onClick={() => setIsProfileModalOpen(true)}
               title="Click to view & edit your profile"
             >
               <div
                 className="user-avatar-circle"
                 style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
                   overflow: "hidden",
                   position: "relative",
                   background: (profile?.photoURL || editPhotoUrl) ? "transparent" : "var(--primary)",
+                  border: "2px solid #FFFFFF",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  flexShrink: 0,
                 }}
               >
                 {(profile?.photoURL || editPhotoUrl) ? (
@@ -683,14 +698,10 @@ export default function HomePage() {
                     : "U"
                 )}
               </div>
-              <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#191E24" }}>
-                {profile?.displayName || user?.displayName || profile?.email?.split("@")[0] || user?.email?.split("@")[0] || "My Account"}
-              </span>
             </div>
           ) : (
-            <button className="btn-header-auth" onClick={handleOpenAuth}>
+            <button className="user-login-only-btn" onClick={handleOpenAuth} title="Login or Sign Up">
               <UserIcon size={18} />
-              <span>Login/SignUp</span>
             </button>
           )}
         </div>

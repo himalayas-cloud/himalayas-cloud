@@ -128,12 +128,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 40px;
+  padding: 16px 36px;
   background: #ffffff;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.logo-group {
+.header-brand-wrap {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -156,6 +156,14 @@ body {
   align-items: center;
 }
 
+.header-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  margin-right: 14px;
+}
+
 .location-pill {
   display: flex;
   align-items: center;
@@ -176,34 +184,65 @@ body {
   background: var(--primary-light);
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .btn-host-navbar {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 0.88rem;
   font-weight: 700;
-  color: var(--primary);
-  background: var(--primary-light);
-  border: 1px solid var(--primary-border);
+  color: #fffdfd;
+  background: #ff7d2a;
+  border: 1px solid #e86c1e;
   cursor: pointer;
   padding: 8px 16px;
   border-radius: var(--radius-full);
   transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(242, 106, 27, 0.08);
+  box-shadow: 0 2px 8px rgba(255, 125, 42, 0.28);
 }
 
 .btn-host-navbar:hover {
-  background: var(--primary);
+  background: #e86c1e;
   color: #ffffff;
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(242, 106, 27, 0.25);
+  border-color: #d95f12;
+  box-shadow: 0 4px 14px rgba(255, 125, 42, 0.38);
   transform: translateY(-1px);
+}
+
+.header-profile-corner {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.user-avatar-only-btn:hover {
+  transform: scale(1.05);
+}
+
+.user-login-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-login-only-btn:hover {
+  background: var(--primary);
+  color: #FFFFFF;
 }
 
 .btn-header-auth {
@@ -2810,29 +2849,103 @@ body {
     gap: 16px;
   }
 
-  /* Center Budget Slider Popup on Mobile Screen */
+  /* Mobile Header: Row 1 = Logo on left, Profile avatar on extreme right; Row 2 = Rent Your Room & Location */
+  .app-header {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 12px 16px !important;
+    gap: 10px 0 !important;
+    background: #ffffff !important;
+  }
+
+  .header-brand-wrap {
+    flex: 0 0 auto !important;
+    order: 0 !important;
+  }
+
+  .header-profile-corner {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+    order: 1 !important;
+  }
+
+  .header-nav-actions {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    order: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 !important;
+  }
+
+  .header-nav-actions .btn-host-navbar {
+    flex: 1 1 50% !important;
+    justify-content: center !important;
+    padding: 8px 10px !important;
+    font-size: 0.84rem !important;
+    white-space: nowrap !important;
+  }
+
+  .header-nav-actions .location-pill {
+    flex: 1 1 50% !important;
+    justify-content: center !important;
+    padding: 8px 10px !important;
+    font-size: 0.84rem !important;
+    white-space: nowrap !important;
+  }
+
+  .location-pill-text {
+    max-width: 90px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Popover Backdrop: Always transparent - NO BLACK/DARK SCREEN */
+  .popover-backdrop-layer {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 900 !important;
+  }
+
+  /* Filter Dropdown (A Room, Furnishing) & Budget Popup:
+     Use fixed positioning centered on screen so they NEVER overflow on any side */
+  .filter-dropdown-card {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translate(-50%, -50%) !important;
+    min-width: 240px !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 1200 !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22) !important;
+    border-radius: 16px !important;
+  }
+
   .budget-popup-card {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
+    right: auto !important;
     transform: translate(-50%, -50%) !important;
-    width: calc(100% - 32px) !important;
-    max-width: 360px !important;
-    z-index: 2500 !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
-    border-radius: 20px !important;
+    width: min(340px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 1200 !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22) !important;
+    border-radius: 16px !important;
   }
 
+  /* Backdrop needs z-index just below the popup to catch taps */
   .popover-backdrop-layer {
-    background: rgba(15, 23, 42, 0.5) !important;
-    backdrop-filter: blur(3px) !important;
-    -webkit-backdrop-filter: blur(3px) !important;
-    z-index: 2400 !important;
-  }
-
-  .filter-dropdown-card {
-    right: 0 !important;
-    left: auto !important;
+    background: rgba(0, 0, 0, 0.18) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 1100 !important;
   }
 }
 
