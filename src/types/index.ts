@@ -13,7 +13,7 @@ export interface UserProfile {
   updatedAt: Timestamp | null;
 }
 
-export type PropertyType = "1 Room set" | "2 Room set" | "3 room set" | "room" | "flat" | "pg" | "shared_room" | string;
+export type PropertyType = "1 Room set" | "2 Room set" | "3 room set" | "PG / Hostel" | "room" | "flat" | "pg" | "shared_room" | string;
 export type ListingStatus = "draft" | "pending" | "published" | "rejected" | "rented";
 
 export interface PropertyListing {

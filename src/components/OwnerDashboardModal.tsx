@@ -98,7 +98,7 @@ export default function OwnerDashboardModal({
   const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(
     CITY_BASE_COORDINATES["Nahan"] || [30.5599, 77.2955]
   );
-  const [propertyType, setPropertyType] = useState<"1 Room set" | "2 Room set" | "3 room set">("1 Room set");
+  const [propertyType, setPropertyType] = useState<"1 Room set" | "2 Room set" | "3 room set" | "PG / Hostel">("1 Room set");
   const [furnished, setFurnished] = useState<"No" | "Semi" | "Yes">("No");
   const [price, setPrice] = useState<number | "">("");
   
@@ -303,6 +303,7 @@ export default function OwnerDashboardModal({
       // Reset form
       setLocationDetails("");
       setSelectedCoordinates(null);
+      setPropertyType("1 Room set");
       setPrice("");
       setFurnished("No");
       setSelectedPhotos([]);
@@ -586,14 +587,14 @@ export default function OwnerDashboardModal({
                 </div>
               </div>
 
-              {/* Field 4: Property Type (1 Room set, 2 Room set, 3 room set) */}
+              {/* Field 4: Property Type (1 Room set, 2 Room set, 3 room set, PG / Hostel) */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <Layers size={15} color="var(--primary)" />
                   <span>4. Property Type *</span>
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                  {(["1 Room set", "2 Room set", "3 room set"] as const).map((typeOption) => (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(115px, 1fr))", gap: "10px" }}>
+                  {(["1 Room set", "2 Room set", "3 room set", "PG / Hostel"] as const).map((typeOption) => (
                     <button
                       key={typeOption}
                       type="button"

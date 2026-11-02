@@ -221,6 +221,46 @@ const DUMMY_PROPERTIES: Property[] = [
     type: "1 Room set",
     description: "Well-maintained 1BHK flat in prime Baddi location. 24/7 power backup, reserved parking, very close to major pharmaceutical plants.",
   },
+  {
+    id: "prop-pg-1",
+    title: "Premium PG / Hostel with Meals & WiFi in Solan",
+    price: 6000,
+    area: 350,
+    furnished: "Furnished",
+    city: "Solan City",
+    district: "Solan",
+    locality: "Oachghat / Bypass",
+    address: "Near Shoolini University Road & Oachghat, Solan",
+    coordinates: [30.8750, 77.1250],
+    ownerName: "Sunita Sharma",
+    ownerPhone: "+91 98161 44552",
+    photos: [
+      "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "PG / Hostel",
+    description: "Comfortable student and working professional PG / Hostel. Includes 3 hygienic meals daily, high-speed WiFi, laundry facilities, study table, and 24-hour hot water.",
+  },
+  {
+    id: "prop-pg-2",
+    title: "Boys & Girls PG / Hostel near Sanjauli Chowk",
+    price: 7000,
+    area: 400,
+    furnished: "Furnished",
+    city: "Shimla City",
+    district: "Shimla",
+    locality: "Sanjauli",
+    address: "Near Sanjauli College & Hospital, Shimla",
+    coordinates: [31.1025, 77.1950],
+    ownerName: "Rajeev Thakur",
+    ownerPhone: "+91 98822 77889",
+    photos: [
+      "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80",
+    ],
+    type: "PG / Hostel",
+    description: "Centrally located PG / Hostel in Sanjauli, 5 minutes from Govt College Sanjauli and IGMC. Nutritious home-cooked food, geyser, study area, CCTV security, and scenic mountain views.",
+  },
 ];
 
 /**
@@ -598,7 +638,7 @@ export default function HomePage() {
                 setIsOwnerDashboardOpen(true);
               }
             }}
-            title="List your room, flat, or PG in Himachal"
+            title="List your room, flat, PG or hostel in Himachal"
           >
             <PlusCircle size={16} />
             <span>Rent Your Room</span>
@@ -720,6 +760,7 @@ export default function HomePage() {
                       { label: "1 Room set", value: "1 Room set" },
                       { label: "2 Room set", value: "2 Room set" },
                       { label: "3 room set", value: "3 room set" },
+                      { label: "PG / Hostel", value: "PG / Hostel" },
                     ].map((opt) => (
                       <div
                         key={opt.value}
