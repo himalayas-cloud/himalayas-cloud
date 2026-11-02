@@ -345,15 +345,15 @@ export default function OwnerDashboardModal({
 
   return (
     <>
-      {/* FULLSCREEN BLINKING LOGO WAITING SCREEN - NOTHING ELSE VISIBLE */}
+      {/* BLINKING LOGO PUBLISHING OVERLAY - TRANSPARENT BACKDROP */}
       {isPublishingScreen && (
         <div className="publishing-fullscreen-overlay">
           <div className="publishing-logo-container">
             <Image
               src="/logo.png"
               alt="Rent Himalayas Logo"
-              width={150}
-              height={100}
+              width={48}
+              height={48}
               className="publishing-blinking-logo"
               priority
             />

@@ -275,8 +275,6 @@ export default function HomePage() {
     isGoogleLinked,
     isPasswordLinked,
     clearError,
-    signupWithEmail,
-    loginWithEmail,
     loginWithGoogle,
     linkGoogleAccount,
     logout,
@@ -317,7 +315,6 @@ export default function HomePage() {
 
   // Modals state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isOwnerDashboardOpen, setIsOwnerDashboardOpen] = useState(false);
   const [selectedPropertyForDetail, setSelectedPropertyForDetail] = useState<Property | null>(null);
@@ -344,11 +341,6 @@ export default function HomePage() {
       }
     }
   };
-
-  // Email form state
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
 
   // Customer Profile Edit State
   const [editName, setEditName] = useState("");
@@ -418,20 +410,6 @@ export default function HomePage() {
   const handleCloseAuth = () => {
     setIsAuthModalOpen(false);
     clearError();
-  };
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (isSignUp) {
-        await signupWithEmail(email, password, name);
-      } else {
-        await loginWithEmail(email, password);
-      }
-      handleCloseAuth();
-    } catch {
-      // Error handled in AuthContext
-    }
   };
 
   const handleGoogleAuth = async () => {
@@ -1263,113 +1241,57 @@ export default function HomePage() {
           </div>
         )}
 
-      {/* AUTH MODAL (CLEAN EMAIL/PASSWORD & GOOGLE AUTH) */}
+      {/* AUTH MODAL (CLEAN 1-CLICK GOOGLE SIGN IN) */}
       {isAuthModalOpen && (
         <div className="modal-overlay animate-fade-in" onClick={handleCloseAuth}>
           <div
             className="modal-dialog animate-slide-down"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "440px", padding: "26px" }}
+            style={{ maxWidth: "410px", padding: "32px 26px", textAlign: "center" }}
           >
             <button className="modal-close-btn" onClick={handleCloseAuth}>
               <X size={20} />
             </button>
 
-            <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "4px", color: "#191E24" }}>
-              {isSignUp ? "Create Your Account" : "Welcome Back"}
+            {/* Brand Icon Header */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: "var(--primary-light)",
+                marginBottom: "16px",
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Rent Himalayas"
+                width={32}
+                height={32}
+                style={{ objectFit: "contain" }}
+              />
+            </div>
+
+            <h2 style={{ fontSize: "1.35rem", fontWeight: 800, marginBottom: "8px", color: "#191E24" }}>
+              Welcome to Rent Himalayas
             </h2>
-            <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "20px" }}>
-              Access verified rentals and direct owner contacts in Himachal.
+            <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: "22px" }}>
+              Sign in with your Google account to view owner contact details, save favorite rooms, and list properties across Himachal.
             </p>
 
-            {authError && <div className="alert-error">{authError}</div>}
+            {authError && <div className="alert-error" style={{ textAlign: "left", marginBottom: "16px" }}>{authError}</div>}
 
-            <form onSubmit={handleEmailAuth}>
-              {isSignUp && (
-                <div className="form-group">
-                  <label className="form-label">Full Name</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Vishal Verma"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="Minimum 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={loading}
-                style={{ width: "100%", padding: "12px", fontWeight: 700, fontSize: "0.95rem" }}
-              >
-                {loading
-                  ? "Please wait..."
-                  : isSignUp
-                  ? "Create Account"
-                  : "Sign In"}
-              </button>
-
-              <div style={{ textAlign: "center", marginTop: "16px", fontSize: "0.88rem" }}>
-                <span style={{ color: "var(--text-muted)" }}>
-                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                </span>
-                <button
-                  type="button"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--primary)",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    clearError();
-                  }}
-                >
-                  {isSignUp ? "Sign In" : "Sign Up"}
-                </button>
-              </div>
-            </form>
-
-            <div className="auth-divider" style={{ margin: "20px 0" }}>Or continue with</div>
-
-            {/* GOOGLE SIGN IN */}
+            {/* GOOGLE SIGN IN BUTTON */}
             <button
               type="button"
-              className="btn-google"
+              className="btn-google-auth-primary"
               onClick={handleGoogleAuth}
               disabled={loading}
-              style={{ width: "100%" }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24">
+              <svg width="20" height="20" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -1387,8 +1309,12 @@ export default function HomePage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Sign in with Google</span>
+              <span>{loading ? "Signing in..." : "Continue with Google"}</span>
             </button>
+
+            <div style={{ marginTop: "20px", fontSize: "0.76rem", color: "#94A3B8", lineHeight: 1.5 }}>
+              Fast 1-click login. Your account and contacts stay secure on Rent Himalayas.
+            </div>
           </div>
         </div>
       )}

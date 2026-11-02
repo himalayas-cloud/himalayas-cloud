@@ -624,6 +624,40 @@ body {
   border-color: #CBD5E1;
 }
 
+.btn-google-auth-primary {
+  width: 100%;
+  padding: 14px 20px;
+  background: #ffffff;
+  color: #191E24;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-google-auth-primary:hover:not(:disabled) {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-google-auth-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-google-auth-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
@@ -2760,7 +2794,7 @@ body {
 }
 
 /* ============================================================
-   BLINKING LOGO PUBLISHING WAITING SCREEN (FULLSCREEN)
+   BLINKING LOGO PUBLISHING WAITING OVERLAY (TRANSPARENT BACKGROUND)
    ============================================================ */
 .publishing-fullscreen-overlay {
   position: fixed;
@@ -2768,7 +2802,9 @@ body {
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: 9999999;
   display: flex;
   align-items: center;
@@ -2777,6 +2813,7 @@ body {
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
+  cursor: wait;
 }
 
 .publishing-logo-container {
@@ -2787,22 +2824,23 @@ body {
 }
 
 .publishing-blinking-logo {
-  width: 150px;
-  height: auto;
-  max-width: 75vw;
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
   object-fit: contain;
-  animation: logoBlinkPulse 1s ease-in-out infinite;
+  animation: logoBlinkPulse 0.9s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25));
 }
 
 @keyframes logoBlinkPulse {
   0%, 100% {
-    opacity: 0.1;
-    transform: scale(0.92);
+    opacity: 0.2;
+    transform: scale(0.9);
   }
   50% {
     opacity: 1;
-    transform: scale(1.06);
-    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.08));
+    transform: scale(1.08);
+    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
   }
 }
 
