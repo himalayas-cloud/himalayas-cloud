@@ -83,6 +83,7 @@ export default function OwnerDashboardModal({
   const [activeTab, setActiveTab] = useState<"listings" | "create">("create");
   const [myProperties, setMyProperties] = useState<PropertyListing[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isPublishingScreen, setIsPublishingScreen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -251,6 +252,9 @@ export default function OwnerDashboardModal({
     }
 
     setLoading(true);
+    setIsPublishingScreen(true);
+    const publishStartTime = Date.now();
+
     try {
       // 1. Upload photos from phone/PC
       const photoUrls = await uploadAllPhotos();
@@ -288,6 +292,12 @@ export default function OwnerDashboardModal({
         coordinates: safeCoordinates,
       });
 
+      // Ensure blinking logo displays for at least 2 seconds
+      const elapsed = Date.now() - publishStartTime;
+      if (elapsed < 2000) {
+        await new Promise((resolve) => setTimeout(resolve, 2000 - elapsed));
+      }
+
       setSuccessMsg("Your room has been published successfully and is now live on Rent Himalayas!");
       
       // Reset form
@@ -297,13 +307,11 @@ export default function OwnerDashboardModal({
       setFurnished("No");
       setSelectedPhotos([]);
       
-      // Switch to listings tab after a brief delay
-      setTimeout(() => {
-        setActiveTab("listings");
-        setSuccessMsg(null);
-      }, 1500);
+      setIsPublishingScreen(false);
+      setActiveTab("listings");
     } catch (err) {
       console.error("Listing creation error:", err);
+      setIsPublishingScreen(false);
       const msg = (err as Error).message;
       if (msg.includes("permission") || msg.includes("Missing or insufficient")) {
         setPermissionError(true);
@@ -336,15 +344,32 @@ export default function OwnerDashboardModal({
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
-      <div
-        className="modal-dialog animate-slide-down"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "680px", maxHeight: "92vh" }}
-      >
-        <button className="modal-close-btn" onClick={onClose}>
-          <X size={20} />
-        </button>
+    <>
+      {/* FULLSCREEN BLINKING LOGO WAITING SCREEN - NOTHING ELSE VISIBLE */}
+      {isPublishingScreen && (
+        <div className="publishing-fullscreen-overlay">
+          <div className="publishing-logo-container">
+            <Image
+              src="/logo.png"
+              alt="Rent Himalayas Logo"
+              width={150}
+              height={100}
+              className="publishing-blinking-logo"
+              priority
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="modal-overlay animate-fade-in" onClick={onClose}>
+        <div
+          className="modal-dialog animate-slide-down"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "680px", maxHeight: "92vh" }}
+        >
+          <button className="modal-close-btn" onClick={onClose} disabled={isPublishingScreen}>
+            <X size={20} />
+          </button>
 
         {/* Modal Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
@@ -950,5 +975,6 @@ export default function OwnerDashboardModal({
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -923,7 +923,7 @@ export default function HomePage() {
                   <div className="filter-dropdown-card">
                     {[
                       { label: "All Furnishing", value: "all" },
-                      { label: "No Furnished (Default)", value: "no-furnished" },
+                      { label: "No Furnished", value: "no-furnished" },
                       { label: "Semi-Furnished", value: "semi" },
                       { label: "Furnished", value: "furnished" },
                     ].map((opt) => (
