@@ -52,8 +52,12 @@ export function useListingsLiveRefresh() {
 
         if (version !== lastVersionRef.current) {
           lastVersionRef.current = version;
-          // Invalidate all SWR keys matching /api/properties
-          mutate((key) => typeof key === "string" && key.startsWith("/api/properties"));
+          // Invalidate both standard and SWR Infinite ($inf$) cache keys
+          mutate(
+            (key) =>
+              typeof key === "string" &&
+              (key.startsWith("/api/properties") || key.includes("/api/properties"))
+          );
         }
       },
       (err) => {
@@ -72,14 +76,21 @@ export function useListingsLiveRefresh() {
  * Paginated infinite query for listings.
  * Cursor-based with 8 items per page, backed by SWR cache and server cache.
  */
-export function useInfiniteProperties(initialPage?: PropertiesPageResult) {
+export function useInfiniteProperties(
+  initialPage?: PropertiesPageResult,
+  district?: string | null
+) {
   const getKey = (pageIndex: number, previousPageData: PropertiesPageResult | null) => {
     // If reached end of listings
     if (previousPageData && !previousPageData.nextCursor) return null;
-    // First page
-    if (pageIndex === 0) return "/api/properties";
-    // Subsequent pages
-    return `/api/properties?cursor=${encodeURIComponent(previousPageData!.nextCursor!)}`;
+    const base = "/api/properties";
+    const params = new URLSearchParams();
+    if (district) params.set("district", district);
+    if (pageIndex > 0 && previousPageData?.nextCursor) {
+      params.set("cursor", previousPageData.nextCursor);
+    }
+    const q = params.toString();
+    return q ? `${base}?${q}` : base;
   };
 
   const { data, error, size, setSize, isValidating, mutate } = useSWRInfinite<PropertiesPageResult>(
@@ -116,6 +127,25 @@ export function useInfiniteProperties(initialPage?: PropertiesPageResult) {
     mutate,
     size,
     setSize,
+  };
+}
+
+/**
+ * Hook to fetch all published listings for map markers and full-dataset filtering.
+ */
+export function useAllDistrictProperties(district?: string | null) {
+  const url = `/api/properties?all=true${district ? `&district=${encodeURIComponent(district)}` : ""}`;
+  const { data, error, isLoading, mutate } = useSWR<{ items: PropertyListing[] }>(
+    url,
+    fetcher,
+    swrOptions
+  );
+
+  return {
+    items: data?.items || [],
+    isLoading,
+    isError: Boolean(error),
+    mutate,
   };
 }
 

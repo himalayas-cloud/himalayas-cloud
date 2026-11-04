@@ -23,10 +23,11 @@ async function verifyFirebaseToken(idToken: string) {
 
 function safeRevalidate(tag: string) {
   try {
-    (revalidateTag as any)(tag);
+    // In Next.js 16, { expire: 0 } explicitly purges stale cache entries immediately
+    (revalidateTag as any)(tag, { expire: 0 });
   } catch {
     try {
-      (revalidateTag as any)(tag, { expire: 0 });
+      (revalidateTag as any)(tag);
     } catch (e) {
       console.warn("Failed to revalidate tag:", tag, e);
     }

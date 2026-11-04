@@ -56,8 +56,10 @@ export default function HomeClient({
   }, []);
 
   // Sliding City Transition (Sirmaur -> Solan -> Shimla)
-  const SLIDING_CITIES = ["Sirmaur", "Solan", "Shimla"];
+  const BASE_CITIES = ["Sirmaur", "Solan", "Shimla"];
+  const SLIDING_CITIES = ["Sirmaur", "Solan", "Shimla", "Sirmaur"];
   const [slidingCityIndex, setSlidingCityIndex] = useState(0);
+  const [enableCityTransition, setEnableCityTransition] = useState(true);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -68,13 +70,25 @@ export default function HomeClient({
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [locationModalTab, setLocationModalTab] = useState("Sirmaur");
 
-  // Smooth automatic visual transition between Sirmaur -> Solan -> Shimla
+  // Smooth unidirectional visual transition between Sirmaur -> Solan -> Shimla
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlidingCityIndex((prev) => (prev + 1) % SLIDING_CITIES.length);
+      setEnableCityTransition(true);
+      setSlidingCityIndex((prev) => prev + 1);
     }, 2800);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (slidingCityIndex === BASE_CITIES.length) {
+      // Reached the clone element (Sirmaur). Wait for CSS transition (550ms) to finish, then snap back to 0
+      const snapTimer = setTimeout(() => {
+        setEnableCityTransition(false);
+        setSlidingCityIndex(0);
+      }, 580);
+      return () => clearTimeout(snapTimer);
+    }
+  }, [slidingCityIndex, BASE_CITIES.length]);
 
   const handleOpenAuth = () => {
     clearError();
@@ -153,10 +167,7 @@ export default function HomeClient({
             <button
               type="button"
               className="roomster-nav-list-btn"
-              onClick={() => {
-                if (!user) handleOpenAuth();
-                else setIsOwnerDashboardOpen(true);
-              }}
+              onClick={() => router.push("/rooms-for-rent-in-sirmaur?listRoom=true")}
               title="List your room, flat, PG or hostel in Himachal"
             >
               <PlusCircle size={15} />
@@ -226,8 +237,7 @@ export default function HomeClient({
                   style={{ width: "100%", padding: "12px", justifyContent: "center", display: "flex", gap: "8px", borderRadius: "12px", fontWeight: 700 }}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (!user) handleOpenAuth();
-                    else setIsOwnerDashboardOpen(true);
+                    router.push("/rooms-for-rent-in-sirmaur?listRoom=true");
                   }}
                 >
                   <PlusCircle size={18} />
@@ -314,10 +324,13 @@ export default function HomeClient({
                 className="sliding-city-track"
                 style={{
                   transform: `translateY(-${slidingCityIndex * 1.25}em)`,
+                  transition: enableCityTransition
+                    ? "transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)"
+                    : "none",
                 }}
               >
-                {SLIDING_CITIES.map((cityName) => (
-                  <span key={cityName} className="sliding-city-item">
+                {SLIDING_CITIES.map((cityName, idx) => (
+                  <span key={`${cityName}-${idx}`} className="sliding-city-item">
                     {cityName}
                   </span>
                 ))}
@@ -345,10 +358,7 @@ export default function HomeClient({
             <button
               type="button"
               className="roomster-cta-btn primary"
-              onClick={() => {
-                if (!user) handleOpenAuth();
-                else setIsOwnerDashboardOpen(true);
-              }}
+              onClick={() => router.push("/rooms-for-rent-in-sirmaur?listRoom=true")}
             >
               <PlusCircle size={18} />
               <span>List a room</span>
@@ -623,10 +633,7 @@ export default function HomeClient({
               </Link>
               <button
                 type="button"
-                onClick={() => {
-                  if (!user) handleOpenAuth();
-                  else setIsOwnerDashboardOpen(true);
-                }}
+                onClick={() => router.push("/rooms-for-rent-in-sirmaur?listRoom=true")}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -738,10 +745,7 @@ export default function HomeClient({
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!user) handleOpenAuth();
-                    else setIsOwnerDashboardOpen(true);
-                  }}
+                  onClick={() => router.push("/rooms-for-rent-in-sirmaur?listRoom=true")}
                   style={{ background: "transparent", border: "none", padding: 0, color: "#94A3B8", cursor: "pointer", fontSize: "0.88rem", textAlign: "left" }}
                 >
                   List Your Space

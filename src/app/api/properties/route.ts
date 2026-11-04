@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCachedPropertiesPage } from "@/lib/properties-cache";
+import { getCachedPropertiesPage, getCachedAllProperties } from "@/lib/properties-cache";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor");
+    const district = searchParams.get("district");
+    const all = searchParams.get("all");
 
-    const page = await getCachedPropertiesPage(cursor);
+    if (all === "true") {
+      const items = await getCachedAllProperties(district);
+      return NextResponse.json(
+        { items },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+          },
+        }
+      );
+    }
+
+    const page = await getCachedPropertiesPage(cursor, district);
 
     return NextResponse.json(page, {
       headers: {

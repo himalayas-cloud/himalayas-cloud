@@ -116,7 +116,15 @@ export async function updatePropertyListing(
     patch.thumbs = photos.thumbs;
     patch.coverThumb = photos.thumbs[0] || "";
     patch.imageCount = Math.max(photos.thumbs.length, photos.images.length, 1);
-    batch.set(doc(db, PROPERTY_IMAGES, propertyId), { images: photos.images }, { merge: true });
+    const currentUid = auth.currentUser?.uid || updates.ownerUid;
+    batch.set(
+      doc(db, PROPERTY_IMAGES, propertyId),
+      {
+        ...(currentUid ? { ownerUid: currentUid } : {}),
+        images: photos.images,
+      },
+      { merge: true }
+    );
   }
 
   batch.update(doc(db, PROPERTIES, propertyId), patch);
@@ -184,12 +192,18 @@ export interface PropertiesPageResult {
  */
 export async function fetchPublishedPage(
   cursor?: string | null,
-  pageSize = 8
+  pageSize = 8,
+  district?: string | null
 ): Promise<PropertiesPageResult> {
   const constraints: any[] = [
     where("status", "==", "published"),
-    orderBy("createdAt", "desc"),
   ];
+
+  if (district) {
+    constraints.push(where("district", "==", district));
+  }
+
+  constraints.push(orderBy("createdAt", "desc"));
 
   if (cursor) {
     const millis = Number(cursor);
@@ -212,7 +226,10 @@ export async function fetchPublishedPage(
       const fallbackSnap = await getDocs(
         query(collection(db, PROPERTIES), where("status", "==", "published"))
       );
-      const all = fallbackSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      let all = fallbackSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      if (district) {
+        all = all.filter((d: any) => d.district?.toLowerCase() === district.toLowerCase());
+      }
       all.sort((a: any, b: any) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
       let startIndex = 0;
@@ -306,12 +323,12 @@ export async function fetchPublishedPage(
   return { items, nextCursor };
 }
 
-export async function fetchPublishedProperties() {
-  const page = await fetchPublishedPage(null, 50);
+export async function fetchPublishedProperties(district?: string | null, maxLimit = 100) {
+  const page = await fetchPublishedPage(null, maxLimit, district);
   return page.items;
 }
 
-export async function fetchPropertyWithImages(propertyId: string) {
+export async function fetchPropertyWithImages(propertyId: string): Promise<PropertyListing | null> {
   const [listingSnap, imagesSnap] = await Promise.all([
     getDoc(doc(db, PROPERTIES, propertyId)).catch(() => null),
     getDoc(doc(db, PROPERTY_IMAGES, propertyId)).catch((e) => {
@@ -342,7 +359,8 @@ export async function fetchPropertyWithImages(propertyId: string) {
     thumbs: data.thumbs || (data.coverThumb ? [data.coverThumb] : []),
     coverThumb: data.coverThumb || images[0] || "",
     images,
+    photos: images,
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
-  };
+  } as PropertyListing;
 }

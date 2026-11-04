@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import type { PropertyListing } from "@/types";
 import {
   fetchPublishedPage,
   fetchPublishedProperties,
@@ -9,25 +10,40 @@ import {
 
 export const PAGE_SIZE = 8;
 
-export function getCachedPropertiesPage(cursor: string | null = null): Promise<PropertiesPageResult> {
-  const cacheKey = ["properties-page-v3", cursor || "initial"];
+export function getCachedPropertiesPage(
+  cursor: string | null = null,
+  district: string | null = null
+): Promise<PropertiesPageResult> {
+  const cacheKey = ["properties-page-v3", district || "all", cursor || "initial"];
   return unstable_cache(
-    () => fetchPublishedPage(cursor, PAGE_SIZE),
+    () => fetchPublishedPage(cursor, PAGE_SIZE, district),
     cacheKey,
     {
-      tags: ["properties"],
+      tags: district ? ["properties", `district:${district}`] : ["properties"],
+      revalidate: 600,
+    }
+  )();
+}
+
+export function getCachedAllProperties(district: string | null = null) {
+  const cacheKey = ["properties-all-v3", district || "all"];
+  return unstable_cache(
+    () => fetchPublishedProperties(district, 100),
+    cacheKey,
+    {
+      tags: district ? ["properties", `district:${district}`] : ["properties"],
       revalidate: 600,
     }
   )();
 }
 
 export const getCachedProperties = unstable_cache(
-  fetchPublishedProperties,
+  () => fetchPublishedProperties(null, 100),
   ["published-properties"],
   { tags: ["properties"], revalidate: 600 }
 );
 
-export function getCachedProperty(id: string) {
+export function getCachedProperty(id: string): Promise<PropertyListing | null> {
   return unstable_cache(
     () => fetchPropertyWithImages(id),
     ["property", id],

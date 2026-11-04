@@ -27,7 +27,7 @@ import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
 import Navbar from "@/components/navbar";
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
-import { useInfiniteProperties, useListingsLiveRefresh } from "@/hooks/use-properties";
+import { useInfiniteProperties, useListingsLiveRefresh, useAllDistrictProperties } from "@/hooks/use-properties";
 import {
   searchLocalities,
   getCoordinatesForLocality,
@@ -273,16 +273,20 @@ const DUMMY_PROPERTIES: Property[] = [
   },
 ];
 
+import { PropertiesPageResult } from "@/lib/properties";
+
 export interface MarketplaceViewProps {
   initialDistrict?: string;
   defaultCity?: string;
   pageTitle?: string;
+  initialPage?: PropertiesPageResult;
 }
 
 export default function MarketplaceView({
   initialDistrict = "Sirmaur",
   defaultCity,
   pageTitle,
+  initialPage,
 }: MarketplaceViewProps) {
   const { user, profile, loading, authError, loginWithGoogle, updateProfileData, logout, clearError } = useAuth();
   const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
@@ -344,55 +348,72 @@ export default function MarketplaceView({
     }
   }, [profile, user]);
 
+  const handledListRoomRef = useRef(false);
+
   const {
     items: rawListings = [],
     isLoading,
     isLoadingMore,
     isReachingEnd,
     loadMore,
-  } = useInfiniteProperties();
+  } = useInfiniteProperties(initialPage, initialDistrict);
   useListingsLiveRefresh();
+
+  // Fetch all district listings for full map pins and deep filtering across all pages
+  const { items: allDistrictRawListings = [] } = useAllDistrictProperties(initialDistrict);
+
+  const formatListing = React.useCallback(
+    (l: any): Property => {
+      const thumbs =
+        l.thumbs && l.thumbs.length > 0
+          ? l.thumbs
+          : l.coverThumb
+            ? [l.coverThumb]
+            : l.photos && l.photos.length > 0
+              ? l.photos
+              : [
+                  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+                ];
+
+      return {
+        id: l.id || `fs-${Math.random()}`,
+        title: l.title,
+        price: l.monthlyRent,
+        area: l.areaSqft || 900,
+        furnished: l.furnished || "No Furnished",
+        district: l.district || initialDistrict || "Sirmaur",
+        city: l.city || "Nahan",
+        locality: l.locality,
+        address: l.addressApprox || `${l.locality}, ${l.city}`,
+        ownerName: l.ownerName,
+        ownerPhone: l.ownerPhone,
+        photos: thumbs,
+        thumbs,
+        coverThumb: l.coverThumb || thumbs[0],
+        imageCount: l.imageCount || thumbs.length || 1,
+        type: (l.propertyType as any) || "1 Room set",
+        description: l.description,
+        status: l.status,
+        coordinates: parseValidCoordinates(l.coordinates, l.city, l.locality),
+      };
+    },
+    [initialDistrict]
+  );
 
   // Keep firestore properties synced with SWR cached data
   useEffect(() => {
     if (rawListings.length > 0) {
-      const formatted: Property[] = rawListings.map((l: any) => {
-        const thumbs =
-          l.thumbs && l.thumbs.length > 0
-            ? l.thumbs
-            : l.coverThumb
-              ? [l.coverThumb]
-              : l.photos && l.photos.length > 0
-                ? l.photos
-                : [
-                    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-                  ];
-
-        return {
-          id: l.id || `fs-${Math.random()}`,
-          title: l.title,
-          price: l.monthlyRent,
-          area: l.areaSqft || 900,
-          furnished: l.furnished || "No Furnished",
-          district: l.district || initialDistrict || "Sirmaur",
-          city: l.city || "Nahan",
-          locality: l.locality,
-          address: l.addressApprox || `${l.locality}, ${l.city}`,
-          ownerName: l.ownerName,
-          ownerPhone: l.ownerPhone,
-          photos: thumbs,
-          thumbs,
-          coverThumb: l.coverThumb || thumbs[0],
-          imageCount: l.imageCount || thumbs.length || 1,
-          type: (l.propertyType as any) || "1 Room set",
-          description: l.description,
-          status: l.status,
-          coordinates: parseValidCoordinates(l.coordinates, l.city, l.locality),
-        };
-      });
-      setFirestoreProperties(formatted);
+      setFirestoreProperties(rawListings.map(formatListing));
     }
-  }, [rawListings, initialDistrict]);
+  }, [rawListings, formatListing]);
+
+  // All properties in district (for map markers and filtering across all rooms)
+  const allDistrictProperties = React.useMemo(() => {
+    if (allDistrictRawListings.length > 0) {
+      return allDistrictRawListings.map(formatListing);
+    }
+    return firestoreProperties;
+  }, [allDistrictRawListings, firestoreProperties, formatListing]);
 
   // Backward-compatible manual reload helper
   const loadProperties = async () => { };
@@ -405,6 +426,14 @@ export default function MarketplaceView({
   const handleCloseAuth = () => {
     setIsAuthModalOpen(false);
     clearError();
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("listRoom") || url.searchParams.has("action")) {
+        url.searchParams.delete("listRoom");
+        url.searchParams.delete("action");
+        window.history.replaceState({}, "", url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ""));
+      }
+    }
   };
 
   const handleGoogleAuth = async () => {
@@ -429,7 +458,7 @@ export default function MarketplaceView({
     return firestoreProperties;
   }, [firestoreProperties]);
 
-  // Sync state if URL specifies a deep link property
+  // Sync state if URL specifies a deep link property or listRoom action
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -443,11 +472,39 @@ export default function MarketplaceView({
           }
         }
       }
+      if (!handledListRoomRef.current && (params.get("listRoom") === "true" || params.get("action") === "list")) {
+        handledListRoomRef.current = true;
+        // Strip query params immediately so closing modal NEVER re-opens it
+        const url = new URL(window.location.href);
+        url.searchParams.delete("listRoom");
+        url.searchParams.delete("action");
+        window.history.replaceState({}, "", url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ""));
+
+        if (!user) {
+          setIsAuthModalOpen(true);
+        } else {
+          setIsOwnerDashboardOpen(true);
+        }
+      }
     }
-  }, [combinedProperties]);
+  }, [combinedProperties, user]);
+
+  // Determine if active search/filtering is engaged
+  const isFilteringActive = Boolean(
+    (selectedCity &&
+      selectedCity !== "All" &&
+      selectedCity.toLowerCase() !== (initialDistrict || "").toLowerCase()) ||
+    (searchQuery && searchQuery.trim().length > 0) ||
+    (typeFilter && typeFilter !== "all") ||
+    isBudgetApplied ||
+    (furnishingFilter && furnishingFilter !== "all")
+  );
+
+  // When filtering, search across the full district dataset so all matching rooms across all pages are found
+  const sourceToFilter = isFilteringActive ? allDistrictProperties : combinedProperties;
 
   // Filter properties with two-tier District & Town matching
-  const filteredProperties = combinedProperties.filter((prop) => {
+  const filteredProperties = sourceToFilter.filter((prop) => {
     if (selectedCity !== "All") {
       const target = selectedCity.toLowerCase().trim();
       const propCity = (prop.city || "").toLowerCase().trim();
@@ -505,6 +562,15 @@ export default function MarketplaceView({
     }
     return true;
   });
+
+  // Map display: If filtering is active, show all matching pins.
+  // If not filtering, show pins for ALL rooms in the district so users on mobile and desktop can explore everything!
+  const mapDisplayProperties = React.useMemo(() => {
+    if (isFilteringActive) {
+      return filteredProperties;
+    }
+    return allDistrictProperties.length > 0 ? allDistrictProperties : combinedProperties;
+  }, [isFilteringActive, filteredProperties, allDistrictProperties, combinedProperties]);
 
   return (
     <div className="app-container">
@@ -1005,8 +1071,8 @@ export default function MarketplaceView({
             ))}
           </div>
 
-          {/* Pagination Load More Button */}
-          {!isReachingEnd && filteredProperties.length > 0 && (
+          {/* Pagination Load More Button (active when browsing all listings) */}
+          {!isFilteringActive && !isReachingEnd && filteredProperties.length > 0 && (
             <div style={{ textAlign: "center", margin: "28px 0" }}>
               <button
                 type="button"
@@ -1079,7 +1145,7 @@ export default function MarketplaceView({
         {/* Right Fixed / Sticky Map Pane */}
         <section className={`split-right-pane ${mobileView === "list" ? "hidden-on-mobile" : ""}`}>
           <PropertyMap
-            properties={filteredProperties}
+            properties={mapDisplayProperties}
             selectedCity={selectedCity}
             selectedProperty={selectedPropertyForDetail}
             hoveredPropertyId={hoveredPropertyId}
@@ -1387,6 +1453,18 @@ export default function MarketplaceView({
           isOpen={isOwnerDashboardOpen}
           onClose={() => {
             setIsOwnerDashboardOpen(false);
+            if (typeof window !== "undefined") {
+              const url = new URL(window.location.href);
+              if (url.searchParams.has("listRoom") || url.searchParams.has("action")) {
+                url.searchParams.delete("listRoom");
+                url.searchParams.delete("action");
+                window.history.replaceState(
+                  {},
+                  "",
+                  url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "")
+                );
+              }
+            }
             loadProperties();
           }}
           user={user}
