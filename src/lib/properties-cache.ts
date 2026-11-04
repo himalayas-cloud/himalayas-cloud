@@ -10,7 +10,7 @@ import {
 export const PAGE_SIZE = 8;
 
 export function getCachedPropertiesPage(cursor: string | null = null): Promise<PropertiesPageResult> {
-  const cacheKey = ["properties-page", cursor || "initial"];
+  const cacheKey = ["properties-page-v3", cursor || "initial"];
   return unstable_cache(
     () => fetchPublishedPage(cursor, PAGE_SIZE),
     cacheKey,

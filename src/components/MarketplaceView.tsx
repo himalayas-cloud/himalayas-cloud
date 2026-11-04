@@ -27,7 +27,7 @@ import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import PropertyDetailModal, { PropertyDetail } from "@/components/PropertyDetailModal";
 import Navbar from "@/components/navbar";
 import PropertyImageCarousel from "@/components/PropertyImageCarousel";
-import { useProperties, useListingsLiveRefresh } from "@/hooks/use-properties";
+import { useInfiniteProperties, useListingsLiveRefresh } from "@/hooks/use-properties";
 import {
   searchLocalities,
   getCoordinatesForLocality,
@@ -344,7 +344,13 @@ export default function MarketplaceView({
     }
   }, [profile, user]);
 
-  const { data: rawListings = [] } = useProperties();
+  const {
+    items: rawListings = [],
+    isLoading,
+    isLoadingMore,
+    isReachingEnd,
+    loadMore,
+  } = useInfiniteProperties();
   useListingsLiveRefresh();
 
   // Keep firestore properties synced with SWR cached data
@@ -418,11 +424,9 @@ export default function MarketplaceView({
     setSelectedPropertyForDetail(null);
   };
 
-  // Combine Firestore listings with DUMMY listings, avoiding duplicate IDs
+  // Only display real listings from Firestore
   const combinedProperties = React.useMemo(() => {
-    const all = [...firestoreProperties, ...DUMMY_PROPERTIES];
-    const unique = Array.from(new Map(all.map((p) => [p.id, p])).values());
-    return unique;
+    return firestoreProperties;
   }, [firestoreProperties]);
 
   // Sync state if URL specifies a deep link property
@@ -1000,6 +1004,32 @@ export default function MarketplaceView({
               </div>
             ))}
           </div>
+
+          {/* Pagination Load More Button */}
+          {!isReachingEnd && filteredProperties.length > 0 && (
+            <div style={{ textAlign: "center", margin: "28px 0" }}>
+              <button
+                type="button"
+                onClick={() => loadMore()}
+                disabled={isLoadingMore}
+                className="btn-primary"
+                style={{
+                  padding: "12px 32px",
+                  borderRadius: "999px",
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  boxShadow: "0 4px 16px rgba(242, 106, 27, 0.28)",
+                  cursor: isLoadingMore ? "wait" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  margin: "0 auto",
+                }}
+              >
+                {isLoadingMore ? "Loading more rooms..." : `Load More Rooms (${filteredProperties.length} showing)`}
+              </button>
+            </div>
+          )}
 
           {filteredProperties.length === 0 && (
             <div
