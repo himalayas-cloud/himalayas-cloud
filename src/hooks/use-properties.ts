@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRInfinite from "swr/infinite";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -102,7 +102,9 @@ export function useInfiniteProperties(
     }
   );
 
-  const items = data ? data.flatMap((page) => page.items) : (initialPage?.items ?? []);
+  const items = useMemo(() => {
+    return data ? data.flatMap((page) => page.items) : (initialPage?.items ?? []);
+  }, [data, initialPage]);
   const isLoadingInitial = !data && !error;
   const isLoadingMore =
     isLoadingInitial || (size > 0 && data && typeof data[size - 1] === "undefined");

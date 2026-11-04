@@ -289,7 +289,6 @@ export default function MarketplaceView({
   initialPage,
 }: MarketplaceViewProps) {
   const { user, profile, loading, authError, loginWithGoogle, updateProfileData, logout, clearError } = useAuth();
-  const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
   // Default city/district selection
@@ -400,11 +399,12 @@ export default function MarketplaceView({
     [initialDistrict]
   );
 
-  // Keep firestore properties synced with SWR cached data
-  useEffect(() => {
+  // Real listings from Firestore (paginated feed)
+  const combinedProperties = React.useMemo(() => {
     if (rawListings.length > 0) {
-      setFirestoreProperties(rawListings.map(formatListing));
+      return rawListings.map(formatListing);
     }
+    return [];
   }, [rawListings, formatListing]);
 
   // All properties in district (for map markers and filtering across all rooms)
@@ -412,8 +412,8 @@ export default function MarketplaceView({
     if (allDistrictRawListings.length > 0) {
       return allDistrictRawListings.map(formatListing);
     }
-    return firestoreProperties;
-  }, [allDistrictRawListings, firestoreProperties, formatListing]);
+    return combinedProperties;
+  }, [allDistrictRawListings, combinedProperties, formatListing]);
 
   // Backward-compatible manual reload helper
   const loadProperties = async () => { };
@@ -452,11 +452,6 @@ export default function MarketplaceView({
   const handleClosePropertyDetail = () => {
     setSelectedPropertyForDetail(null);
   };
-
-  // Only display real listings from Firestore
-  const combinedProperties = React.useMemo(() => {
-    return firestoreProperties;
-  }, [firestoreProperties]);
 
   // Sync state if URL specifies a deep link property or listRoom action
   useEffect(() => {

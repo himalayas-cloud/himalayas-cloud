@@ -345,11 +345,11 @@ export default function HomeClient({
 
           <ul className="roomster-hero-stats">
             <li>
-              <strong>1,450+</strong> rooms & flats for rent right now
+              <strong>100+</strong> rooms & flats for rent right now
             </li>
             <li>•</li>
             <li>
-              <strong>3,800+</strong> people looking for a roommate
+              <strong>100+</strong> people looking for a roommate
             </li>
           </ul>
 
@@ -365,7 +365,7 @@ export default function HomeClient({
             </button>
             <Link href="/rooms-for-rent-in-sirmaur" className="roomster-cta-btn secondary">
               <Search size={18} />
-              <span>Find a room in Sirmaur</span>
+              <span>Find a room</span>
             </Link>
           </div>
         </div>
