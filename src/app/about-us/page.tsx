@@ -278,6 +278,86 @@ export default function AboutUsPage() {
             </div>
           </div>
 
+          {/* Contact Us Box */}
+          <div
+            style={{
+              marginTop: "44px",
+              padding: "28px 24px",
+              borderRadius: "20px",
+              background: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              textAlign: "center",
+              boxShadow: "0 4px 18px rgba(0,0,0,0.04)",
+            }}
+          >
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, marginBottom: "8px", color: "#191E24" }}>
+              Get in Touch with Rent Himalayas
+            </h3>
+            <p style={{ fontSize: "0.92rem", color: "#64748B", maxWidth: "480px", margin: "0 auto 20px" }}>
+              Have questions, feedback, or need help with a listing? Connect with our team directly.
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "14px", flexWrap: "wrap" }}>
+              <a
+                href="mailto:renthimalayas@gmail.com"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "#FFF4ED",
+                  color: "#DE590F",
+                  padding: "10px 18px",
+                  borderRadius: "9999px",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                  textDecoration: "none",
+                  border: "1px solid #FFD5B8",
+                }}
+              >
+                <span>renthimalayas@gmail.com</span>
+              </a>
+              <a
+                href="https://www.instagram.com/rent_himalayas/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "#FDF2F8",
+                  color: "#BE185D",
+                  padding: "10px 18px",
+                  borderRadius: "9999px",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                  textDecoration: "none",
+                  border: "1px solid #FBCFE8",
+                }}
+              >
+                <span>Instagram: @rent_himalayas</span>
+              </a>
+              <a
+                href="https://www.linkedin.com/company/rent-himalayas/home/?viewAsMember=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "#EFF6FF",
+                  color: "#1D4ED8",
+                  padding: "10px 18px",
+                  borderRadius: "9999px",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                  textDecoration: "none",
+                  border: "1px solid #BFDBFE",
+                }}
+              >
+                <span>LinkedIn Page</span>
+              </a>
+            </div>
+          </div>
+
           <div style={{ textAlign: "center", marginTop: "36px" }}>
             <Link
               href="/"

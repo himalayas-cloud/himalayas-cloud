@@ -1087,7 +1087,7 @@ export default function MarketplaceView({
                   margin: "0 auto",
                 }}
               >
-                {isLoadingMore ? "Loading more rooms..." : `Load More Rooms (${filteredProperties.length} showing)`}
+                {isLoadingMore ? "Loading more rooms..." : "Load More Rooms"}
               </button>
             </div>
           )}
@@ -1133,7 +1133,21 @@ export default function MarketplaceView({
 
           {/* Bottom attribution/copyright inside left scroll */}
           <div style={{ marginTop: "32px", padding: "16px 0", borderTop: "1px solid #E2E8F0", textAlign: "center", fontSize: "0.8rem", color: "#94A3B8" }}>
-            <p>© 2026 RentHimalayas • Sirmaur • Solan • Shimla</p>
+            <p style={{ marginBottom: "8px" }}>© 2026 RentHimalayas • Sirmaur • Solan • Shimla</p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap", fontSize: "0.82rem" }}>
+              <a href="mailto:renthimalayas@gmail.com" style={{ color: "#64748B", textDecoration: "none" }}>
+                renthimalayas@gmail.com
+              </a>
+              <a href="https://www.instagram.com/rent_himalayas/" target="_blank" rel="noopener noreferrer" style={{ color: "#64748B", textDecoration: "none" }}>
+                Instagram
+              </a>
+              <a href="https://www.linkedin.com/company/rent-himalayas/home/?viewAsMember=true" target="_blank" rel="noopener noreferrer" style={{ color: "#64748B", textDecoration: "none" }}>
+                LinkedIn
+              </a>
+              <Link href="/about-us" style={{ color: "#64748B", textDecoration: "none" }}>
+                About Us
+              </Link>
+            </div>
           </div>
         </section>
 

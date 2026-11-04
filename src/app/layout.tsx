@@ -13,11 +13,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://renthimalayas.com"),
   title: {
-    default: "Rent Himalayas | Verified Rooms, Flats & PGs for Rent in Himachal",
+    default: "Rent Himalayas | Rooms & Flats for Rent in Himachal",
     template: "%s | Rent Himalayas",
   },
   description:
-    "Find verified rental homes, 1BHK/2BHK flats, rooms for rent, and student PGs in Himachal Pradesh across Nahan, Paonta Sahib, Solan, and Shimla with direct owner contact and zero brokerage.",
+    "Find verified rooms, 1BHK/2BHK flats, and student PGs across Himachal with direct owner contact and zero brokerage.",
   applicationName: "Rent Himalayas",
   keywords: [
     "rooms for rent in Himachal Pradesh",
@@ -39,12 +39,16 @@ export const metadata: Metadata = {
   creator: "Rent Himalayas",
   publisher: "Rent Himalayas",
   alternates: {
-    canonical: "/",
+    canonical: "https://renthimalayas.com",
+    languages: {
+      en: "https://renthimalayas.com",
+      "x-default": "https://renthimalayas.com",
+    },
   },
   openGraph: {
-    title: "Rent Himalayas | Verified Rooms, Flats & PGs in Himachal",
+    title: "Rent Himalayas | Rooms & Flats for Rent in Himachal",
     description:
-      "Direct owner rental marketplace for Himachal Pradesh. Find verified rooms, flats, and student PGs in Sirmaur, Solan, and Shimla with zero brokerage.",
+      "Find verified rooms, 1BHK/2BHK flats, and student PGs across Himachal with direct owner contact and zero brokerage.",
     url: "https://renthimalayas.com",
     siteName: "Rent Himalayas",
     locale: "en_IN",
@@ -60,9 +64,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rent Himalayas | Verified Rooms, Flats & PGs in Himachal",
+    title: "Rent Himalayas | Rooms & Flats for Rent in Himachal",
     description:
-      "Direct owner rental marketplace for Himachal Pradesh. Find verified rooms, flats, and student PGs with zero brokerage.",
+      "Find verified rooms, 1BHK/2BHK flats, and student PGs across Himachal with direct owner contact and zero brokerage.",
     images: ["/logo.png"],
   },
   robots: {
@@ -99,26 +103,50 @@ const jsonLdOrganization = {
       url: "https://renthimalayas.com",
       logo: {
         "@type": "ImageObject",
+        "@id": "https://renthimalayas.com/#logo",
         url: "https://renthimalayas.com/logo.png",
+        contentUrl: "https://renthimalayas.com/logo.png",
+        caption: "Rent Himalayas Logo",
       },
+      image: "https://renthimalayas.com/logo.png",
+      email: "renthimalayas@gmail.com",
+      sameAs: [
+        "https://www.instagram.com/rent_himalayas/",
+        "https://www.linkedin.com/company/rent-himalayas/",
+      ],
       description:
         "Direct-to-owner rental housing marketplace for Himachal Pradesh, India, offering zero brokerage rooms, flats, and PGs.",
       areaServed: {
-        "@type": "State",
+        "@type": "AdministrativeArea",
         name: "Himachal Pradesh",
       },
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "renthimalayas@gmail.com",
+          areaServed: "IN",
+          availableLanguage: ["en", "hi"],
+        },
+      ],
     },
     {
       "@type": "WebSite",
       "@id": "https://renthimalayas.com/#website",
       url: "https://renthimalayas.com",
       name: "Rent Himalayas",
+      description:
+        "Rooms for rent & roommate finder across Himachal Pradesh in Sirmaur, Solan, and Shimla.",
       publisher: {
         "@id": "https://renthimalayas.com/#organization",
       },
+      inLanguage: "en",
       potentialAction: {
         "@type": "SearchAction",
-        target: "https://renthimalayas.com/rooms-for-rent-in-sirmaur?search={search_term_string}",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://renthimalayas.com/rooms-for-rent-in-sirmaur?search={search_term_string}",
+        },
         "query-input": "required name=search_term_string",
       },
     },
@@ -134,6 +162,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="alternate" hrefLang="en" href="https://renthimalayas.com" />
+        <link rel="alternate" hrefLang="x-default" href="https://renthimalayas.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

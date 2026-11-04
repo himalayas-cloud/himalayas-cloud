@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import MarketplaceView from "@/components/MarketplaceView";
 import { getCachedPropertiesPage } from "@/lib/properties-cache";
@@ -67,40 +66,24 @@ const shimlaSchema = {
   ],
 };
 
-async function ShimlaLoader() {
+export default async function RoomsForRentInShimlaPage() {
   const initialPage = await getCachedPropertiesPage(null, "Shimla").catch(() => ({
     items: [],
     nextCursor: null,
   }));
 
   return (
-    <MarketplaceView
-      initialDistrict="Shimla"
-      defaultCity="Shimla"
-      pageTitle="Rooms for Rent in Shimla, HP"
-      initialPage={initialPage}
-    />
-  );
-}
-
-export default function RoomsForRentInShimlaPage() {
-  return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(shimlaSchema) }}
       />
-      <Suspense
-        fallback={
-          <MarketplaceView
-            initialDistrict="Shimla"
-            defaultCity="Shimla"
-            pageTitle="Rooms for Rent in Shimla, HP"
-          />
-        }
-      >
-        <ShimlaLoader />
-      </Suspense>
+      <MarketplaceView
+        initialDistrict="Shimla"
+        defaultCity="Shimla"
+        pageTitle="Rooms for Rent in Shimla, HP"
+        initialPage={initialPage}
+      />
     </>
   );
 }

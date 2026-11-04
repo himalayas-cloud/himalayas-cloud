@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Star,
   Compass,
+  Mail,
 } from "lucide-react";
 import OwnerDashboardModal from "@/components/OwnerDashboardModal";
 import ProfileAvatar from "@/components/ProfileAvatar";
@@ -55,9 +56,9 @@ export default function HomeClient({
     setIsMounted(true);
   }, []);
 
-  // Sliding City Transition (Sirmaur -> Solan -> Shimla)
-  const BASE_CITIES = ["Sirmaur", "Solan", "Shimla"];
-  const SLIDING_CITIES = ["Sirmaur", "Solan", "Shimla", "Sirmaur"];
+  // Sliding City Transition (Nahan -> Solan -> Shimla)
+  const BASE_CITIES = ["Nahan", "Solan", "Shimla"];
+  const SLIDING_CITIES = ["Nahan", "Solan", "Shimla", "Nahan"];
   const [slidingCityIndex, setSlidingCityIndex] = useState(0);
   const [enableCityTransition, setEnableCityTransition] = useState(true);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -70,7 +71,7 @@ export default function HomeClient({
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [locationModalTab, setLocationModalTab] = useState("Sirmaur");
 
-  // Smooth unidirectional visual transition between Sirmaur -> Solan -> Shimla
+  // Smooth unidirectional visual transition between Nahan -> Solan -> Shimla
   useEffect(() => {
     const timer = setInterval(() => {
       setEnableCityTransition(true);
@@ -81,7 +82,7 @@ export default function HomeClient({
 
   useEffect(() => {
     if (slidingCityIndex === BASE_CITIES.length) {
-      // Reached the clone element (Sirmaur). Wait for CSS transition (550ms) to finish, then snap back to 0
+      // Reached the clone element (Nahan). Wait for CSS transition (550ms) to finish, then snap back to 0
       const snapTimer = setTimeout(() => {
         setEnableCityTransition(false);
         setSlidingCityIndex(0);
@@ -102,45 +103,6 @@ export default function HomeClient({
 
   return (
     <div className="app-container" style={{ overflowX: "hidden" }}>
-      {/* SEO Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            "@id": "https://renthimalayas.com/#website",
-            url: "https://renthimalayas.com",
-            name: "Rent Himalayas",
-            description:
-              "Rooms for rent & roommate finder across Himachal Pradesh in Sirmaur, Solan, and Shimla.",
-            potentialAction: {
-              "@type": "SearchAction",
-              target: {
-                "@type": "EntryPoint",
-                urlTemplate: "https://renthimalayas.com/rooms-for-rent-in-sirmaur",
-              },
-              "query-input": "required name=search_term_string",
-            },
-          }),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            name: "Rent Himalayas",
-            url: "https://renthimalayas.com",
-            logo: "https://renthimalayas.com/logo.png",
-            description:
-              "Himachal Pradesh's dedicated rental marketplace for verified rooms, 1BHK/2BHK flats, and student PGs with direct owner contact.",
-            areaServed: ["Sirmaur", "Solan", "Shimla", "Himachal Pradesh"],
-          }),
-        }}
-      />
-
       {/* 1. TOP NAVBAR (Roomster Reverse-Engineered Navigation) */}
       <nav className="roomster-navbar" aria-label="Main Navigation">
         <div className="roomster-navbar-inner">
@@ -183,7 +145,7 @@ export default function HomeClient({
               title="Click to switch location"
             >
               <MapPin size={15} className="text-primary" />
-              <span className="location-pill-text">Sirmaur</span>
+              <span className="location-pill-text">Nahan</span>
               <ChevronDown size={13} />
             </div>
 
@@ -246,7 +208,7 @@ export default function HomeClient({
               </li>
               <li>
                 <Link href="/rooms-for-rent-in-sirmaur" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>Rooms in Sirmaur, HP</span>
+                  <span>Rooms in Nahan, HP</span>
                   <ChevronRight size={16} color="#94A3B8" />
                 </Link>
               </li>
@@ -448,13 +410,15 @@ export default function HomeClient({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "FAQPage",
+              "@id": "https://renthimalayas.com/#faq",
+              name: "Frequently Asked Questions - Rent Himalayas",
               mainEntity: [
                 {
                   "@type": "Question",
-                  name: "How do I find a room for rent in Sirmaur, Solan, or Shimla?",
+                  name: "How do I find a room for rent in Nahan, Solan, or Shimla?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Click on any district (like Sirmaur, Solan, or Shimla) to view our dedicated rental page. Filter by room type, budget, or locality and contact the homeowner directly.",
+                    text: "Click on any city (like Nahan, Solan, or Shimla) to view our dedicated rental page. Filter by room type, budget, or locality and contact the homeowner directly.",
                   },
                 },
                 {
@@ -521,8 +485,8 @@ export default function HomeClient({
         <div className="roomster-faq-list">
           {[
             {
-              q: "How do I find a room for rent in Sirmaur, Solan, or Shimla?",
-              a: "Click on any district (like Sirmaur, Solan, or Shimla) to view our dedicated rental page. Filter by room type, budget, or locality and contact the homeowner directly.",
+              q: "How do I find a room for rent in Nahan, Solan, or Shimla?",
+              a: "Click on any city (like Nahan, Solan, or Shimla) to view our dedicated rental page. Filter by room type, budget, or locality and contact the homeowner directly.",
             },
             {
               q: "Is Rent Himalayas free to search and list properties?",
@@ -611,7 +575,7 @@ export default function HomeClient({
               Find Your Next Mountain Home on Rent Himalayas
             </h3>
             <p style={{ fontSize: "1rem", color: "#64748B", lineHeight: 1.6, marginBottom: "24px" }}>
-              Connect directly with verified room and flat owners across Sirmaur, Solan, and Shimla. Call with one tap,
+              Connect directly with verified room and flat owners across Nahan, Solan, and Shimla. Call with one tap,
               chat on WhatsApp, and visit properties without paying any broker commission.
             </p>
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -628,7 +592,7 @@ export default function HomeClient({
                   boxShadow: "0 4px 14px rgba(242, 106, 27, 0.3)",
                 }}
               >
-                <span>Browse Sirmaur Rooms</span>
+                <span>Browse Nahan Rooms</span>
                 <ArrowRight size={16} />
               </Link>
               <button
@@ -705,7 +669,7 @@ export default function HomeClient({
             </Link>
             <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "#94A3B8", maxWidth: "340px", margin: "0 0 16px" }}>
               Himachal Pradesh's dedicated direct-owner rental marketplace connecting tenants with verified rooms,
-              flats, and student PGs across Sirmaur, Solan, and Shimla.
+              flats, and student PGs across Nahan, Solan, and Shimla.
             </p>
             <p style={{ fontSize: "0.82rem", color: "#64748B" }}>
               Zero Commission • Direct Landlord Contact • 100% Free Search
@@ -716,7 +680,7 @@ export default function HomeClient({
             <h4>Popular Districts</h4>
             <ul className="roomster-footer-links">
               <li>
-                <Link href="/rooms-for-rent-in-sirmaur">Sirmaur (Nahan & Paonta)</Link>
+                <Link href="/rooms-for-rent-in-sirmaur">Nahan & Sirmaur (Paonta)</Link>
               </li>
               <li>
                 <Link href="/rooms-for-rent-in-solan">Solan (Baddi & Town)</Link>
@@ -768,20 +732,84 @@ export default function HomeClient({
               </li>
             </ul>
           </div>
+
+          <div className="roomster-footer-col">
+            <h4>Contact Us</h4>
+            <ul className="roomster-footer-links">
+              <li>
+                <a
+                  href="mailto:renthimalayas@gmail.com"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#94A3B8" }}
+                  title="Email Rent Himalayas"
+                >
+                  <Mail size={15} style={{ color: "#F26A1B", flexShrink: 0 }} />
+                  <span style={{ wordBreak: "break-all" }}>renthimalayas@gmail.com</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.instagram.com/rent_himalayas/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#94A3B8" }}
+                  title="Follow us on Instagram"
+                >
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#E1306C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                  </svg>
+                  <span>@rent_himalayas</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.linkedin.com/company/rent-himalayas/home/?viewAsMember=true"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#94A3B8" }}
+                  title="Connect on LinkedIn"
+                >
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#0A66C2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
+                    <rect width="4" height="12" x="2" y="9"/>
+                    <circle cx="4" cy="4" r="2"/>
+                  </svg>
+                  <span>LinkedIn Page</span>
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div className="roomster-footer-bottom">
           <div>© 2026 Rent Himalayas. All rights reserved. Built for Himachal Pradesh.</div>
-          <div style={{ display: "flex", gap: "20px" }}>
-            <Link href="/about-us" style={{ color: "#64748B", textDecoration: "none" }}>
-              Privacy Policy
-            </Link>
-            <Link href="/about-us" style={{ color: "#64748B", textDecoration: "none" }}>
-              Terms of Service
-            </Link>
-            <a href="#faq" style={{ color: "#64748B", textDecoration: "none" }}>
-              Support
+          <div style={{ display: "flex", gap: "18px", alignItems: "center", flexWrap: "wrap" }}>
+            <a
+              href="mailto:renthimalayas@gmail.com"
+              style={{ color: "#94A3B8", textDecoration: "none", fontSize: "0.85rem" }}
+            >
+              Email Us
             </a>
+            <a
+              href="https://www.instagram.com/rent_himalayas/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#94A3B8", textDecoration: "none", fontSize: "0.85rem" }}
+            >
+              Instagram
+            </a>
+            <a
+              href="https://www.linkedin.com/company/rent-himalayas/home/?viewAsMember=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#94A3B8", textDecoration: "none", fontSize: "0.85rem" }}
+            >
+              LinkedIn
+            </a>
+            <Link href="/about-us" style={{ color: "#64748B", textDecoration: "none", fontSize: "0.85rem" }}>
+              About Us
+            </Link>
           </div>
         </div>
       </footer>

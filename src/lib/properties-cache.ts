@@ -1,6 +1,5 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
-import type { PropertyListing } from "@/types";
 import {
   fetchPublishedPage,
   fetchPublishedProperties,
@@ -43,7 +42,7 @@ export const getCachedProperties = unstable_cache(
   { tags: ["properties"], revalidate: 600 }
 );
 
-export function getCachedProperty(id: string): Promise<PropertyListing | null> {
+export function getCachedProperty(id: string) {
   return unstable_cache(
     () => fetchPropertyWithImages(id),
     ["property", id],

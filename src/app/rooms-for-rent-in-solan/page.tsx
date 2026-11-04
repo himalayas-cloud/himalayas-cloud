@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import MarketplaceView from "@/components/MarketplaceView";
 import { getCachedPropertiesPage } from "@/lib/properties-cache";
@@ -67,40 +66,24 @@ const solanSchema = {
   ],
 };
 
-async function SolanLoader() {
+export default async function RoomsForRentInSolanPage() {
   const initialPage = await getCachedPropertiesPage(null, "Solan").catch(() => ({
     items: [],
     nextCursor: null,
   }));
 
   return (
-    <MarketplaceView
-      initialDistrict="Solan"
-      defaultCity="Solan"
-      pageTitle="Rooms for Rent in Solan, HP"
-      initialPage={initialPage}
-    />
-  );
-}
-
-export default function RoomsForRentInSolanPage() {
-  return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(solanSchema) }}
       />
-      <Suspense
-        fallback={
-          <MarketplaceView
-            initialDistrict="Solan"
-            defaultCity="Solan"
-            pageTitle="Rooms for Rent in Solan, HP"
-          />
-        }
-      >
-        <SolanLoader />
-      </Suspense>
+      <MarketplaceView
+        initialDistrict="Solan"
+        defaultCity="Solan"
+        pageTitle="Rooms for Rent in Solan, HP"
+        initialPage={initialPage}
+      />
     </>
   );
 }

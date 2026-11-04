@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import MarketplaceView from "@/components/MarketplaceView";
 import { getCachedPropertiesPage } from "@/lib/properties-cache";
@@ -67,40 +66,24 @@ const sirmaurSchema = {
   ],
 };
 
-async function SirmaurLoader() {
+export default async function RoomsForRentInSirmaurPage() {
   const initialPage = await getCachedPropertiesPage(null, "Sirmaur").catch(() => ({
     items: [],
     nextCursor: null,
   }));
 
   return (
-    <MarketplaceView
-      initialDistrict="Sirmaur"
-      defaultCity="Sirmaur"
-      pageTitle="Rooms for Rent in Sirmaur, HP"
-      initialPage={initialPage}
-    />
-  );
-}
-
-export default function RoomsForRentInSirmaurPage() {
-  return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sirmaurSchema) }}
       />
-      <Suspense
-        fallback={
-          <MarketplaceView
-            initialDistrict="Sirmaur"
-            defaultCity="Sirmaur"
-            pageTitle="Rooms for Rent in Sirmaur, HP"
-          />
-        }
-      >
-        <SirmaurLoader />
-      </Suspense>
+      <MarketplaceView
+        initialDistrict="Sirmaur"
+        defaultCity="Sirmaur"
+        pageTitle="Rooms for Rent in Sirmaur, HP"
+        initialPage={initialPage}
+      />
     </>
   );
 }
