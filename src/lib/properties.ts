@@ -1,214 +1,348 @@
 import {
   collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   doc,
   query,
   where,
   orderBy,
+  limit,
+  startAfter,
   onSnapshot,
   getDocs,
+  getDoc,
+  setDoc,
+  writeBatch,
   serverTimestamp,
+  increment,
+  Timestamp,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { PropertyListing } from "@/types";
 
-const PROPERTIES_COLLECTION = "properties";
+export const PROPERTIES = "properties";
+export const PROPERTY_IMAGES = "propertyImages";
+export const LISTINGS_META_DOC = ["meta", "listings"] as const;
 
-/**
- * Strips any undefined fields from object to prevent Firestore unsupported field value errors.
- */
-function cleanFirestoreData<T extends Record<string, any>>(data: T): Record<string, any> {
-  const cleaned: Record<string, any> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
-      cleaned[key] = value;
-    }
+function clean<T extends Record<string, any>>(data: T) {
+  return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+}
+
+export function toMillis(value: any): number {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (!isNaN(parsed)) return parsed;
   }
-  return cleaned;
+  return 0;
 }
 
 /**
- * Creates a new property rental listing in Cloud Firestore.
+ * Triggers server-side cache revalidation and bumps the live version document
+ * so all connected clients update their listings without page reload.
  */
+export async function notifyListingsChanged(propertyId?: string) {
+  try {
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
+    if (token) {
+      await fetch("/api/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ propertyId }),
+      }).catch((e) => console.warn("Revalidate POST failed:", e));
+    }
+  } catch (err) {
+    console.warn("Revalidate notification error:", err);
+  }
+
+  try {
+    const metaRef = doc(db, LISTINGS_META_DOC[0], LISTINGS_META_DOC[1]);
+    await setDoc(
+      metaRef,
+      {
+        version: increment(1),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ).catch((e) => console.warn("Firestore meta bump failed:", e));
+  } catch (err) {
+    console.warn("Firestore live update broadcast failed:", err);
+  }
+}
+
 export async function createPropertyListing(
-  data: Omit<PropertyListing, "id" | "createdAt" | "updatedAt">
+  data: Omit<PropertyListing, "id" | "createdAt" | "updatedAt" | "images">,
+  thumbs: string[],
+  images: string[]
 ): Promise<string> {
-  const collectionRef = collection(db, PROPERTIES_COLLECTION);
-  const cleanData = cleanFirestoreData(data);
-  const docRef = await addDoc(collectionRef, {
-    ...cleanData,
+  const listingRef = doc(collection(db, PROPERTIES));
+  const batch = writeBatch(db);
+
+  const coverThumb = thumbs[0] || data.coverThumb || "";
+  const imageCount = Math.max(thumbs.length, images.length, 1);
+
+  batch.set(listingRef, {
+    ...clean(data),
+    thumbs,
+    coverThumb,
+    imageCount,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  return docRef.id;
+
+  batch.set(doc(db, PROPERTY_IMAGES, listingRef.id), {
+    ownerUid: data.ownerUid,
+    images,
+  });
+
+  await batch.commit();
+  await notifyListingsChanged(listingRef.id);
+  return listingRef.id;
 }
 
-/**
- * Real-time subscription to listings owned by the logged-in owner.
- */
+export async function updatePropertyListing(
+  propertyId: string,
+  updates: Partial<PropertyListing>,
+  photos?: { thumbs: string[]; images: string[] }
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  const patch: Record<string, any> = {
+    ...clean(updates),
+    updatedAt: serverTimestamp(),
+  };
+
+  if (photos) {
+    patch.thumbs = photos.thumbs;
+    patch.coverThumb = photos.thumbs[0] || "";
+    patch.imageCount = Math.max(photos.thumbs.length, photos.images.length, 1);
+    batch.set(doc(db, PROPERTY_IMAGES, propertyId), { images: photos.images }, { merge: true });
+  }
+
+  batch.update(doc(db, PROPERTIES, propertyId), patch);
+
+  await batch.commit();
+  await notifyListingsChanged(propertyId);
+}
+
+export async function deletePropertyListing(propertyId: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, PROPERTIES, propertyId));
+  batch.delete(doc(db, PROPERTY_IMAGES, propertyId));
+  await batch.commit();
+  await notifyListingsChanged(propertyId);
+}
+
+/** Owner dashboard: one listener, served from IndexedDB cache on re-open. */
 export function subscribeOwnerProperties(
   ownerUid: string,
   onUpdate: (properties: PropertyListing[]) => void,
-  onError?: (error: Error) => void,
-  ownerEmail?: string | null
-) {
-  if (ownerEmail) {
-    let propsByUid: PropertyListing[] = [];
-    let propsByEmail: PropertyListing[] = [];
-
-    const mergeAndEmit = () => {
-      const map = new Map<string, PropertyListing>();
-      [...propsByUid, ...propsByEmail].forEach((p) => {
-        if (p.id) map.set(p.id, p);
-      });
-      const merged = Array.from(map.values());
-      merged.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return timeB - timeA;
-      });
-      onUpdate(merged);
-    };
-
-    const unsubUid = onSnapshot(
-      query(collection(db, PROPERTIES_COLLECTION), where("ownerUid", "==", ownerUid)),
-      (snapshot) => {
-        propsByUid = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<PropertyListing, "id">),
-        }));
-        mergeAndEmit();
-      },
-      (err) => {
-        if (onError) onError(err);
-      }
-    );
-
-    const unsubEmail = onSnapshot(
-      query(collection(db, PROPERTIES_COLLECTION), where("ownerEmail", "==", ownerEmail)),
-      (snapshot) => {
-        propsByEmail = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<PropertyListing, "id">),
-        }));
-        mergeAndEmit();
-      },
-      (err) => {
-        console.warn("Owner email query fallback:", err);
-      }
-    );
-
-    return () => {
-      unsubUid();
-      unsubEmail();
-    };
-  }
-
-  const q = query(
-    collection(db, PROPERTIES_COLLECTION),
-    where("ownerUid", "==", ownerUid)
-  );
-
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const properties: PropertyListing[] = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<PropertyListing, "id">),
-      }));
-      // Sort in memory by createdAt descending
-      properties.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return timeB - timeA;
-      });
-      onUpdate(properties);
-    },
-    (err) => {
-      console.error("Error subscribing to owner properties:", err);
-      if (onError) onError(err);
-    }
-  );
-}
-
-/**
- * Real-time subscription to all published listings for visitors.
- */
-export function subscribePublishedProperties(
-  onUpdate: (properties: PropertyListing[]) => void,
   onError?: (error: Error) => void
 ) {
-  const q = query(
-    collection(db, PROPERTIES_COLLECTION),
-    where("status", "==", "published")
-  );
-
+  const q = query(collection(db, PROPERTIES), where("ownerUid", "==", ownerUid));
   return onSnapshot(
     q,
     (snapshot) => {
-      const properties: PropertyListing[] = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<PropertyListing, "id">),
-      }));
-      properties.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return timeB - timeA;
-      });
-      onUpdate(properties);
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      list.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+      onUpdate(list);
     },
-    (err) => {
-      console.error("Error subscribing to published properties:", err);
-      if (onError) onError(err);
+    (err) => onError?.(err)
+  );
+}
+
+/** Run once per owner: attaches ownerUid to old listings that only had ownerEmail. */
+export async function migrateOwnerEmailListings(ownerUid: string, ownerEmail: string) {
+  const flagKey = `owner-migrated:${ownerUid}`;
+  if (typeof window !== "undefined" && window.localStorage.getItem(flagKey)) return;
+
+  const snap = await getDocs(
+    query(collection(db, PROPERTIES), where("ownerEmail", "==", ownerEmail))
+  );
+  const batch = writeBatch(db);
+  let changed = 0;
+  snap.docs.forEach((d) => {
+    if (d.data().ownerUid !== ownerUid) {
+      batch.update(d.ref, { ownerUid });
+      changed++;
     }
-  );
+  });
+  if (changed > 0) await batch.commit();
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(flagKey, "1");
+  }
+}
+
+export interface PropertiesPageResult {
+  items: PropertyListing[];
+  nextCursor: string | null;
 }
 
 /**
- * One-shot fetch for published properties (used by Next.js edge-cached API routes).
- * Returns JSON-serializable property listings so responses can be cached across edge CDNs.
+ * Server-side paginated query (8 listings per page).
+ * Loads only thumbnails to keep server cache small and within limits.
  */
-export async function fetchPublishedProperties(): Promise<any[]> {
-  const q = query(
-    collection(db, PROPERTIES_COLLECTION),
-    where("status", "==", "published")
-  );
+export async function fetchPublishedPage(
+  cursor?: string | null,
+  pageSize = 8
+): Promise<PropertiesPageResult> {
+  const constraints: any[] = [
+    where("status", "==", "published"),
+    orderBy("createdAt", "desc"),
+  ];
 
-  const snapshot = await getDocs(q);
-  const properties = snapshot.docs.map((d) => {
+  if (cursor) {
+    const millis = Number(cursor);
+    if (!isNaN(millis) && millis > 0) {
+      constraints.push(startAfter(Timestamp.fromMillis(millis)));
+    }
+  }
+
+  constraints.push(limit(pageSize + 1));
+
+  let snapshot;
+  try {
+    const q = query(collection(db, PROPERTIES), ...constraints);
+    snapshot = await getDocs(q);
+  } catch (err: any) {
+    // If the composite index is still being built or not yet created in Firebase Console,
+    // gracefully fall back to a simple query so the site never throws 500 errors.
+    if (err?.message?.includes("index")) {
+      console.warn("Firestore index pending, using in-memory sort fallback:", err.message);
+      const fallbackSnap = await getDocs(
+        query(collection(db, PROPERTIES), where("status", "==", "published"))
+      );
+      const all = fallbackSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      all.sort((a: any, b: any) => toMillis(b.createdAt) - toMillis(a.createdAt));
+
+      let startIndex = 0;
+      if (cursor) {
+        const cursorMillis = Number(cursor);
+        const idx = all.findIndex((item: any) => toMillis(item.createdAt) === cursorMillis);
+        if (idx !== -1) startIndex = idx + 1;
+      }
+
+      const paged = all.slice(startIndex, startIndex + pageSize + 1);
+      const mappedFallback: PropertyListing[] = paged.map((data: any) => {
+        // Collect all available photos (from thumbs, photos, or images) so cards can swipe all photos
+        const allPhotos: string[] =
+          (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
+          (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos : null) ||
+          (Array.isArray(data.images) && data.images.length > 0 ? data.images : null) ||
+          (data.coverThumb ? [data.coverThumb] : []);
+
+        const coverThumb =
+          data.coverThumb ||
+          allPhotos[0] ||
+          "";
+
+        const imageCount =
+          data.imageCount ||
+          allPhotos.length ||
+          1;
+
+        const { photos: _p, images: _i, ...rest } = data;
+
+        return {
+          ...rest,
+          id: data.id,
+          thumbs: allPhotos,
+          photos: allPhotos,
+          coverThumb,
+          imageCount,
+          createdAt: toMillis(data.createdAt),
+          updatedAt: toMillis(data.updatedAt),
+        } as PropertyListing;
+      });
+
+      const hasMoreFallback = mappedFallback.length > pageSize;
+      const itemsFallback = hasMoreFallback ? mappedFallback.slice(0, pageSize) : mappedFallback;
+      const lastItemFallback = itemsFallback[itemsFallback.length - 1];
+      const nextCursorFallback =
+        hasMoreFallback && lastItemFallback ? String(lastItemFallback.createdAt || "") : null;
+
+      return { items: itemsFallback, nextCursor: nextCursorFallback };
+    }
+    throw err;
+  }
+
+  const mapped: PropertyListing[] = snapshot.docs.map((d) => {
     const data = d.data();
+    const allPhotos: string[] =
+      (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
+      (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos : null) ||
+      (Array.isArray(data.images) && data.images.length > 0 ? data.images : null) ||
+      (data.coverThumb ? [data.coverThumb] : []);
+
+    const coverThumb =
+      data.coverThumb ||
+      allPhotos[0] ||
+      "";
+
+    const imageCount =
+      data.imageCount ||
+      allPhotos.length ||
+      1;
+
+    const { photos: _p, images: _i, ...rest } = data;
+
     return {
+      ...rest,
       id: d.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
-      updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Date.now(),
-    };
+      thumbs: allPhotos,
+      photos: allPhotos,
+      coverThumb,
+      imageCount,
+      createdAt: toMillis(data.createdAt),
+      updatedAt: toMillis(data.updatedAt),
+    } as PropertyListing;
   });
 
-  properties.sort((a, b) => b.createdAt - a.createdAt);
-  return properties;
+  const hasMore = mapped.length > pageSize;
+  const items = hasMore ? mapped.slice(0, pageSize) : mapped;
+  const lastItem = items[items.length - 1];
+  const nextCursor = hasMore && lastItem ? String(lastItem.createdAt || "") : null;
+
+  return { items, nextCursor };
 }
 
-/**
- * Updates an existing property listing.
- */
-export async function updatePropertyListing(
-  propertyId: string,
-  updates: Partial<PropertyListing>
-): Promise<void> {
-  const docRef = doc(db, PROPERTIES_COLLECTION, propertyId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+export async function fetchPublishedProperties() {
+  const page = await fetchPublishedPage(null, 50);
+  return page.items;
 }
 
-/**
- * Deletes a property listing.
- */
-export async function deletePropertyListing(propertyId: string): Promise<void> {
-  const docRef = doc(db, PROPERTIES_COLLECTION, propertyId);
-  await deleteDoc(docRef);
+export async function fetchPropertyWithImages(propertyId: string) {
+  const [listingSnap, imagesSnap] = await Promise.all([
+    getDoc(doc(db, PROPERTIES, propertyId)).catch(() => null),
+    getDoc(doc(db, PROPERTY_IMAGES, propertyId)).catch((e) => {
+      console.warn("Could not read propertyImages doc (permissions or non-existent):", e?.message);
+      return null;
+    }),
+  ]);
+
+  if (!listingSnap || !listingSnap.exists() || listingSnap.data().status !== "published") {
+    return null;
+  }
+
+  const data = listingSnap.data();
+  const fullImages = imagesSnap?.exists()
+    ? (imagesSnap.data()?.images as string[] | undefined)
+    : undefined;
+
+  const images =
+    fullImages && fullImages.length > 0
+      ? fullImages
+      : data.thumbs && data.thumbs.length > 0
+        ? data.thumbs
+        : data.images || data.photos || (data.coverThumb ? [data.coverThumb] : []);
+
+  return {
+    ...data,
+    id: listingSnap.id,
+    thumbs: data.thumbs || (data.coverThumb ? [data.coverThumb] : []),
+    coverThumb: data.coverThumb || images[0] || "",
+    images,
+    createdAt: toMillis(data.createdAt),
+    updatedAt: toMillis(data.updatedAt),
+  };
 }

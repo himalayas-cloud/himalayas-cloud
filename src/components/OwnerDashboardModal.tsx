@@ -26,7 +26,9 @@ import {
   subscribeOwnerProperties,
   updatePropertyListing,
   deletePropertyListing,
+  migrateOwnerEmailListings,
 } from "@/lib/properties";
+import { prepareListingImages } from "@/lib/image-compress";
 import {
   getSafeCoordinates,
   parseValidCoordinates,
@@ -113,6 +115,10 @@ export default function OwnerDashboardModal({
     setPermissionError(false);
     setError(null);
 
+    if (user.email) {
+      migrateOwnerEmailListings(user.uid, user.email).catch(() => {});
+    }
+
     const unsubscribe = subscribeOwnerProperties(
       user.uid,
       (props) => {
@@ -126,8 +132,7 @@ export default function OwnerDashboardModal({
         } else {
           setError(err.message);
         }
-      },
-      user.email
+      }
     );
 
     return () => unsubscribe();
@@ -256,8 +261,26 @@ export default function OwnerDashboardModal({
     const publishStartTime = Date.now();
 
     try {
-      // 1. Upload photos from phone/PC
-      const photoUrls = await uploadAllPhotos();
+      // 1. Prepare listing images: thumbs for listing card carousel + full-size images for propertyImages
+      const selectedFiles = selectedPhotos
+        .map((p) => p.file || p.previewUrl)
+        .filter(Boolean) as (File | string)[];
+      let thumbs: string[] = [];
+      let images: string[] = [];
+      let coverThumb = "";
+
+      if (selectedFiles.length > 0) {
+        const prepared = await prepareListingImages(selectedFiles);
+        thumbs = prepared.thumbs;
+        images = prepared.images;
+        coverThumb = prepared.coverThumb;
+      } else {
+        const fallbackUrl =
+          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80";
+        thumbs = [fallbackUrl];
+        images = [fallbackUrl];
+        coverThumb = fallbackUrl;
+      }
 
       const effectiveTown = isCustomTown ? (customTownName.trim() || "Local Area") : town;
       const effectiveCity = effectiveTown;
@@ -273,24 +296,29 @@ export default function OwnerDashboardModal({
       );
 
       // 3. Save to Cloud Firestore
-      await createPropertyListing({
-        ownerUid: user.uid,
-        ownerName: ownerName.trim(),
-        ownerPhone: ownerPhone.trim(),
-        ownerEmail: user.email || undefined,
-        title: generatedTitle,
-        description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
-        propertyType,
-        monthlyRent: Number(price),
-        district,
-        city: effectiveCity,
-        locality: locationDetails.trim(),
-        addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
-        furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
-        photos: photoUrls,
-        status: "published",
-        coordinates: safeCoordinates,
-      });
+      await createPropertyListing(
+        {
+          ownerUid: user.uid,
+          ownerName: ownerName.trim(),
+          ownerPhone: ownerPhone.trim(),
+          ownerEmail: user.email || undefined,
+          title: generatedTitle,
+          description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
+          propertyType,
+          monthlyRent: Number(price),
+          district,
+          city: effectiveCity,
+          locality: locationDetails.trim(),
+          addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
+          furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
+          coverThumb,
+          photos: thumbs,
+          status: "published",
+          coordinates: safeCoordinates,
+        },
+        thumbs,
+        images
+      );
 
       // Ensure blinking logo displays for at least 2 seconds
       const elapsed = Date.now() - publishStartTime;
@@ -882,9 +910,9 @@ export default function OwnerDashboardModal({
                           flexShrink: 0,
                         }}
                       >
-                        {prop.photos?.[0] && (
+                        {(prop.coverThumb || prop.photos?.[0] || (prop as any).images?.[0]) && (
                           <Image
-                            src={prop.photos[0]}
+                            src={prop.coverThumb || prop.photos?.[0] || (prop as any).images?.[0]}
                             alt={prop.title}
                             fill
                             sizes="64px"

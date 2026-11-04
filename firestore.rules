@@ -35,6 +35,27 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------
+    // PROPERTY IMAGES COLLECTION
+    // Path: /propertyImages/{propertyId}
+    // -------------------------------------------------------------
+    match /propertyImages/{propertyId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------
+    // META COLLECTION (for live version bumps and instant visitor sync)
+    // Path: /meta/{docId}
+    // -------------------------------------------------------------
+    match /meta/{docId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // -------------------------------------------------------------
     // REPORTS COLLECTION
     // Path: /reports/{reportId}
     // -------------------------------------------------------------

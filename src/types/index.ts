@@ -34,11 +34,15 @@ export interface PropertyListing {
   areaSqft?: number;
   bedrooms?: number;
   furnished: "Yes" | "No" | "Semi" | "Furnished" | "Semi-Furnished" | "No Furnished" | string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
+  thumbs?: string[];
+  coverThumb?: string;
+  imageCount?: number;
   status: ListingStatus;
   coordinates?: [number, number]; // [lat, lng] for pinpointing on Leaflet map
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: Timestamp | any;
+  updatedAt?: Timestamp | any;
 }
 
 export interface ReportItem {

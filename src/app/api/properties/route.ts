@@ -1,22 +1,19 @@
-import { NextResponse } from "next/server";
-import { fetchPublishedProperties } from "@/lib/properties";
+import { NextRequest, NextResponse } from "next/server";
+import { getCachedPropertiesPage } from "@/lib/properties-cache";
 
-// Server route returning published properties with Edge CDN cache headers
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const properties = await fetchPublishedProperties();
-    return NextResponse.json(properties, {
-      status: 200,
+    const { searchParams } = new URL(req.url);
+    const cursor = searchParams.get("cursor");
+
+    const page = await getCachedPropertiesPage(cursor);
+
+    return NextResponse.json(page, {
       headers: {
-        // Caches on Vercel Edge CDN for 60 seconds.
-        // Even with 50,000 visitors, Vercel Edge responds directly from memory without hitting Firestore!
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        "Vercel-CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Cache-Control": "public, max-age=0, must-revalidate",
       },
     });
   } catch (error: any) {
-    console.error("Error fetching properties for cache:", error);
     return NextResponse.json(
       { error: "Failed to fetch properties", details: error?.message },
       { status: 500 }
