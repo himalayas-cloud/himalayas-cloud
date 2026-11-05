@@ -363,16 +363,18 @@ export default function MarketplaceView({
 
   const formatListing = React.useCallback(
     (l: any): Property => {
+      const candidatePhotos: string[] =
+        (Array.isArray(l.photos) && l.photos.length > 0 ? l.photos : null) ||
+        (Array.isArray(l.thumbs) && l.thumbs.length > 0 ? l.thumbs : null) ||
+        (Array.isArray(l.images) && l.images.length > 0 ? l.images : null) ||
+        (l.coverThumb ? [l.coverThumb] : []);
+
       const thumbs =
-        l.thumbs && l.thumbs.length > 0
-          ? l.thumbs
-          : l.coverThumb
-            ? [l.coverThumb]
-            : l.photos && l.photos.length > 0
-              ? l.photos
-              : [
-                  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-                ];
+        candidatePhotos.length > 0
+          ? candidatePhotos
+          : [
+              "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+            ];
 
       return {
         id: l.id || `fs-${Math.random()}`,
@@ -387,7 +389,7 @@ export default function MarketplaceView({
         ownerName: l.ownerName,
         ownerPhone: l.ownerPhone,
         photos: thumbs,
-        thumbs,
+        thumbs: thumbs,
         coverThumb: l.coverThumb || thumbs[0],
         imageCount: l.imageCount || thumbs.length || 1,
         type: (l.propertyType as any) || "1 Room set",
@@ -967,10 +969,10 @@ export default function MarketplaceView({
                 <div className="property-img-wrapper" style={{ position: "relative", overflow: "hidden" }}>
                   <PropertyImageCarousel
                     images={
-                      property.thumbs && property.thumbs.length > 0
-                        ? property.thumbs
-                        : property.photos && property.photos.length > 0
-                          ? property.photos
+                      property.photos && property.photos.length > 0
+                        ? property.photos
+                        : property.thumbs && property.thumbs.length > 0
+                          ? property.thumbs
                           : property.coverThumb
                             ? [property.coverThumb]
                             : []

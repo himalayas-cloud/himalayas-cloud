@@ -140,7 +140,7 @@ export default function HomeClient({
           {/* Right Corner Actions */}
           <div className="roomster-nav-actions">
             <div
-              className="location-pill"
+              className="location-pill mobile-nav-hide"
               onClick={() => setIsLocationModalOpen(true)}
               title="Click to switch location"
             >
@@ -149,15 +149,17 @@ export default function HomeClient({
               <ChevronDown size={13} />
             </div>
 
-            <ProfileAvatar
-              isLoading={!isMounted || (loading && !profile)}
-              isLoggedIn={Boolean(user || profile)}
-              photoURL={profile?.photoURL}
-              displayName={profile?.displayName || user?.displayName}
-              email={profile?.email || user?.email}
-              onAvatarClick={() => setIsProfileModalOpen(true)}
-              onLoginClick={handleOpenAuth}
-            />
+            <div className="mobile-nav-hide">
+              <ProfileAvatar
+                isLoading={!isMounted || (loading && !profile)}
+                isLoggedIn={Boolean(user || profile)}
+                photoURL={profile?.photoURL}
+                displayName={profile?.displayName || user?.displayName}
+                email={profile?.email || user?.email}
+                onAvatarClick={() => setIsProfileModalOpen(true)}
+                onLoginClick={handleOpenAuth}
+              />
+            </div>
 
             <button
               type="button"
@@ -193,48 +195,22 @@ export default function HomeClient({
 
             <ul className="roomster-drawer-links">
               <li>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ width: "100%", padding: "12px", justifyContent: "center", display: "flex", gap: "8px", borderRadius: "12px", fontWeight: 700 }}
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    router.push("/rooms-for-rent-in-sirmaur?listRoom=true");
-                  }}
-                >
-                  <PlusCircle size={18} />
-                  <span>List Your Space</span>
-                </button>
-              </li>
-              <li>
                 <Link href="/rooms-for-rent-in-sirmaur" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>Rooms in Nahan, HP</span>
-                  <ChevronRight size={16} color="#94A3B8" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-solan" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>Rooms in Solan, HP</span>
-                  <ChevronRight size={16} color="#94A3B8" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-shimla" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>Rooms in Shimla, HP</span>
-                  <ChevronRight size={16} color="#94A3B8" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>Blog Page</span>
+                  <span>Find room</span>
                   <ChevronRight size={16} color="#94A3B8" />
                 </Link>
               </li>
               <li>
                 <a href="#faq" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span>FAQ & Help</span>
+                  <span>FAQ</span>
                   <ChevronRight size={16} color="#94A3B8" />
                 </a>
+              </li>
+              <li>
+                <Link href="/blog" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span>Blogs</span>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </Link>
               </li>
               <li>
                 <Link href="/about-us" className="roomster-drawer-link" onClick={() => setIsMobileMenuOpen(false)}>
@@ -595,27 +571,6 @@ export default function HomeClient({
                 <span>Browse Nahan Rooms</span>
                 <ArrowRight size={16} />
               </Link>
-              <button
-                type="button"
-                onClick={() => router.push("/rooms-for-rent-in-sirmaur?listRoom=true")}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "12px 22px",
-                  borderRadius: "9999px",
-                  fontWeight: 700,
-                  fontSize: "0.92rem",
-                  color: "#334155",
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-              >
-                <PlusCircle size={16} color="var(--primary)" />
-                <span>List a Room Free</span>
-              </button>
             </div>
           </div>
 
@@ -677,24 +632,6 @@ export default function HomeClient({
           </div>
 
           <div className="roomster-footer-col">
-            <h4>Popular Districts</h4>
-            <ul className="roomster-footer-links">
-              <li>
-                <Link href="/rooms-for-rent-in-sirmaur">Nahan & Sirmaur (Paonta)</Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-solan">Solan (Baddi & Town)</Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-shimla">Shimla (Ridge & Sanjauli)</Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-solan">Kasauli & Valleys</Link>
-              </li>
-            </ul>
-          </div>
-
-          <div className="roomster-footer-col">
             <h4>Quick Links</h4>
             <ul className="roomster-footer-links">
               <li>
@@ -714,21 +651,6 @@ export default function HomeClient({
                 >
                   List Your Space
                 </button>
-              </li>
-            </ul>
-          </div>
-
-          <div className="roomster-footer-col">
-            <h4>Room Categories</h4>
-            <ul className="roomster-footer-links">
-              <li>
-                <Link href="/rooms-for-rent-in-sirmaur">1 Room Sets / RK</Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-sirmaur">2BHK / 2 Room Sets</Link>
-              </li>
-              <li>
-                <Link href="/rooms-for-rent-in-solan">Student & Working PGs</Link>
               </li>
             </ul>
           </div>

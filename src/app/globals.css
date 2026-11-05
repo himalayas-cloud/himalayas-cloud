@@ -3677,23 +3677,29 @@ body {
 
 /* FAQ Accordion Section */
 .roomster-faq-section {
-  padding: 70px 20px;
+  width: 100%;
   max-width: 900px;
   margin: 0 auto;
+  padding: 70px 20px;
+  box-sizing: border-box;
 }
 
 .roomster-faq-list {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 14px;
   margin-top: 32px;
+  box-sizing: border-box;
 }
 
 .roomster-faq-item {
+  width: 100%;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 16px;
   overflow: hidden;
+  box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -3704,6 +3710,7 @@ body {
 
 .roomster-faq-question {
   width: 100%;
+  box-sizing: border-box;
   padding: 20px 24px;
   background: transparent;
   border: none;
@@ -3738,6 +3745,8 @@ body {
 }
 
 .roomster-faq-answer {
+  width: 100%;
+  box-sizing: border-box;
   padding: 0 24px 22px;
   color: #475569;
   font-size: 0.95rem;
@@ -3755,7 +3764,7 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 40px;
   margin-bottom: 40px;
 }
@@ -3858,6 +3867,9 @@ body {
 @media (max-width: 900px) {
   .roomster-nav-links {
     display: none;
+  }
+  .roomster-nav-actions .mobile-nav-hide {
+    display: none !important;
   }
   .roomster-mobile-menu-btn {
     display: flex;

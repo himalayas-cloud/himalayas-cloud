@@ -19,6 +19,7 @@ import {
   Search,
   Loader2,
   Compass,
+  Pencil,
 } from "lucide-react";
 import { PropertyListing, ListingStatus } from "@/types";
 import {
@@ -83,6 +84,7 @@ export default function OwnerDashboardModal({
   displayName,
 }: OwnerDashboardModalProps) {
   const [activeTab, setActiveTab] = useState<"listings" | "create">("create");
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [myProperties, setMyProperties] = useState<PropertyListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [isPublishingScreen, setIsPublishingScreen] = useState(false);
@@ -231,37 +233,71 @@ export default function OwnerDashboardModal({
       );
 
       // 3. Save to Cloud Firestore
-      await createPropertyListing(
-        {
-          ownerUid: user.uid,
-          ownerName: ownerName.trim(),
-          ownerPhone: ownerPhone.trim(),
-          ownerEmail: user.email || undefined,
-          title: generatedTitle,
-          description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
-          propertyType,
-          monthlyRent: Number(price),
-          district,
-          city: effectiveCity,
-          locality: locationDetails.trim(),
-          addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
-          furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
-          coverThumb,
-          photos: thumbs,
-          status: "published",
-          coordinates: safeCoordinates,
-        },
-        thumbs,
-        images
-      );
+      if (editingPropertyId) {
+        await updatePropertyListing(
+          editingPropertyId,
+          {
+            ownerName: ownerName.trim(),
+            ownerPhone: ownerPhone.trim(),
+            ownerEmail: user.email || undefined,
+            title: generatedTitle,
+            description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
+            propertyType,
+            monthlyRent: Number(price),
+            district,
+            city: effectiveCity,
+            locality: locationDetails.trim(),
+            addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
+            furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
+            coverThumb,
+            photos: thumbs,
+            coordinates: safeCoordinates,
+          },
+          {
+            thumbs,
+            images,
+          }
+        );
 
-      // Ensure blinking logo displays for at least 2 seconds
-      const elapsed = Date.now() - publishStartTime;
-      if (elapsed < 2000) {
-        await new Promise((resolve) => setTimeout(resolve, 2000 - elapsed));
+        const elapsed = Date.now() - publishStartTime;
+        if (elapsed < 2000) {
+          await new Promise((resolve) => setTimeout(resolve, 2000 - elapsed));
+        }
+
+        setSuccessMsg("Your listing was updated successfully!");
+        setEditingPropertyId(null);
+      } else {
+        await createPropertyListing(
+          {
+            ownerUid: user.uid,
+            ownerName: ownerName.trim(),
+            ownerPhone: ownerPhone.trim(),
+            ownerEmail: user.email || undefined,
+            title: generatedTitle,
+            description: `${propertyType} available for rent in ${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}. Contact owner directly for visit and details.`,
+            propertyType,
+            monthlyRent: Number(price),
+            district,
+            city: effectiveCity,
+            locality: locationDetails.trim(),
+            addressApprox: `${locationDetails.trim()}, ${effectiveCity}, Distt. ${district}`,
+            furnished: furnished === "Yes" ? "Furnished" : furnished === "Semi" ? "Semi-Furnished" : "No Furnished",
+            coverThumb,
+            photos: thumbs,
+            status: "published",
+            coordinates: safeCoordinates,
+          },
+          thumbs,
+          images
+        );
+
+        const elapsed = Date.now() - publishStartTime;
+        if (elapsed < 2000) {
+          await new Promise((resolve) => setTimeout(resolve, 2000 - elapsed));
+        }
+
+        setSuccessMsg("Your room has been published successfully and is now live on Rent Himalayas!");
       }
-
-      setSuccessMsg("Your room has been published successfully and is now live on Rent Himalayas!");
       
       // Reset form
       setLocationDetails("");
@@ -274,17 +310,102 @@ export default function OwnerDashboardModal({
       setIsPublishingScreen(false);
       setActiveTab("listings");
     } catch (err) {
-      console.error("Listing creation error:", err);
+      console.error("Listing save error:", err);
       setIsPublishingScreen(false);
       const msg = (err as Error).message;
       if (msg.includes("permission") || msg.includes("Missing or insufficient")) {
         setPermissionError(true);
       } else {
-        setError("Error creating listing: " + msg);
+        setError("Error saving listing: " + msg);
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStartEdit = (prop: PropertyListing) => {
+    if (!prop.id) return;
+    setEditingPropertyId(prop.id);
+    setError(null);
+    setSuccessMsg(null);
+
+    setOwnerName(prop.ownerName || displayName || user.displayName || "");
+    setOwnerPhone(prop.ownerPhone || user.phoneNumber || "");
+
+    const propDist = prop.district || "Sirmaur";
+    setDistrict(propDist);
+
+    const availableTowns = getTownsForDistrict(propDist);
+    const townNames = availableTowns.map((t) => t.name);
+    if (prop.city && townNames.includes(prop.city)) {
+      setTown(prop.city);
+      setIsCustomTown(false);
+      setCustomTownName("");
+    } else if (prop.city) {
+      setIsCustomTown(true);
+      setCustomTownName(prop.city);
+    } else {
+      setTown(townNames[0] || "Nahan");
+      setIsCustomTown(false);
+    }
+
+    setLocationDetails(prop.locality || "");
+    if (Array.isArray(prop.coordinates) && prop.coordinates.length === 2 && !isNaN(prop.coordinates[0])) {
+      setSelectedCoordinates(prop.coordinates);
+    } else {
+      setSelectedCoordinates(CITY_BASE_COORDINATES[prop.city || "Nahan"] || null);
+    }
+
+    if (
+      prop.propertyType === "1 Room set" ||
+      prop.propertyType === "2 Room set" ||
+      prop.propertyType === "3 room set" ||
+      prop.propertyType === "PG / Hostel"
+    ) {
+      setPropertyType(prop.propertyType);
+    } else {
+      setPropertyType("1 Room set");
+    }
+
+    const furn = prop.furnished || "";
+    if (furn.includes("Semi")) {
+      setFurnished("Semi");
+    } else if (furn.includes("No")) {
+      setFurnished("No");
+    } else if (furn.toLowerCase().includes("furn")) {
+      setFurnished("Yes");
+    } else {
+      setFurnished("No");
+    }
+
+    setPrice(prop.monthlyRent || "");
+
+    const existingThumbs = Array.isArray(prop.thumbs) && prop.thumbs.length > 0 ? prop.thumbs : prop.photos || [];
+    if (existingThumbs.length > 0) {
+      setSelectedPhotos(
+        existingThumbs.map((url) => ({
+          previewUrl: url,
+          isUploaded: true,
+        }))
+      );
+    } else if (prop.coverThumb) {
+      setSelectedPhotos([{ previewUrl: prop.coverThumb, isUploaded: true }]);
+    } else {
+      setSelectedPhotos([]);
+    }
+
+    setActiveTab("create");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPropertyId(null);
+    setLocationDetails("");
+    setSelectedCoordinates(null);
+    setPropertyType("1 Room set");
+    setPrice("");
+    setFurnished("No");
+    setSelectedPhotos([]);
+    setError(null);
   };
 
   const handleToggleStatus = async (prop: PropertyListing) => {
@@ -361,7 +482,7 @@ export default function OwnerDashboardModal({
             className={`auth-tab-btn ${activeTab === "create" ? "active" : ""}`}
             onClick={() => setActiveTab("create")}
           >
-            + Add Property
+            {editingPropertyId ? "Edit Listing" : "+ Add Property"}
           </button>
           <button
             className={`auth-tab-btn ${activeTab === "listings" ? "active" : ""}`}
@@ -400,6 +521,40 @@ export default function OwnerDashboardModal({
         {activeTab === "create" && (
           <form onSubmit={handleCreateListing}>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {editingPropertyId && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "#EFF6FF",
+                    border: "1px solid #BFDBFE",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#1E40AF", fontSize: "0.88rem", fontWeight: 600 }}>
+                    <Pencil size={15} />
+                    <span>Editing Listing Mode</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    style={{
+                      background: "#DBEAFE",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      color: "#1E40AF",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Cancel Edit
+                  </button>
+                </div>
+              )}
               
               {/* Field 1: Owner Name */}
               <div className="form-group" style={{ marginBottom: 0 }}>
@@ -772,7 +927,12 @@ export default function OwnerDashboardModal({
                 ) : loading ? (
                   <>
                     <RotateCw className="animate-spin" size={18} />
-                    <span>Publishing Listing...</span>
+                    <span>{editingPropertyId ? "Updating Listing..." : "Publishing Listing..."}</span>
+                  </>
+                ) : editingPropertyId ? (
+                  <>
+                    <Check size={18} />
+                    <span>Update Listing</span>
                   </>
                 ) : (
                   <>
@@ -913,6 +1073,25 @@ export default function OwnerDashboardModal({
                         }}
                       >
                         {prop.status === "published" ? "Unpublish" : "Publish"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(prop)}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid #CBD5E1",
+                          background: "#F8FAFC",
+                          color: "#334155",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title="Edit listing details"
+                      >
+                        <Pencil size={14} />
                       </button>
 
                       <button

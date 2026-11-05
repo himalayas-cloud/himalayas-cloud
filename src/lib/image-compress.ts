@@ -1,9 +1,9 @@
 type CompressOptions = { maxWidth: number; quality: number };
 
-export const THUMB: CompressOptions = { maxWidth: 400, quality: 0.55 };
-export const FULL: CompressOptions = { maxWidth: 1280, quality: 0.72 };
+export const THUMB: CompressOptions = { maxWidth: 900, quality: 0.82 };
+export const FULL: CompressOptions = { maxWidth: 1600, quality: 0.88 };
 export const MAX_PHOTOS = 10;
-export const MAX_THUMBS_BYTES = 150_000;
+export const MAX_THUMBS_BYTES = 500_000;
 export const MAX_IMAGES_DOC_BYTES = 900_000;
 
 function loadImage(source: File | string): Promise<HTMLImageElement> {

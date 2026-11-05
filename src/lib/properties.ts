@@ -241,10 +241,9 @@ export async function fetchPublishedPage(
 
       const paged = all.slice(startIndex, startIndex + pageSize + 1);
       const mappedFallback: PropertyListing[] = paged.map((data: any) => {
-        // Collect all available photos (from thumbs, photos, or images) so cards can swipe all photos
         const allPhotos: string[] =
-          (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
           (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos : null) ||
+          (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
           (Array.isArray(data.images) && data.images.length > 0 ? data.images : null) ||
           (data.coverThumb ? [data.coverThumb] : []);
 
@@ -258,13 +257,16 @@ export async function fetchPublishedPage(
           allPhotos.length ||
           1;
 
+        // Send up to 3 high-res preview photos per card for smooth swiping across all listings
+        const cardThumbs = allPhotos.slice(0, 3);
+
         const { photos: _p, images: _i, ...rest } = data;
 
         return {
           ...rest,
           id: data.id,
-          thumbs: allPhotos,
-          photos: allPhotos,
+          thumbs: cardThumbs,
+          photos: cardThumbs,
           coverThumb,
           imageCount,
           createdAt: toMillis(data.createdAt),
@@ -286,8 +288,8 @@ export async function fetchPublishedPage(
   const mapped: PropertyListing[] = snapshot.docs.map((d) => {
     const data = d.data();
     const allPhotos: string[] =
-      (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
       (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos : null) ||
+      (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
       (Array.isArray(data.images) && data.images.length > 0 ? data.images : null) ||
       (data.coverThumb ? [data.coverThumb] : []);
 
@@ -301,13 +303,16 @@ export async function fetchPublishedPage(
       allPhotos.length ||
       1;
 
+    // Send up to 3 high-res preview photos per card for smooth swiping across all listings
+    const cardThumbs = allPhotos.slice(0, 3);
+
     const { photos: _p, images: _i, ...rest } = data;
 
     return {
       ...rest,
       id: d.id,
-      thumbs: allPhotos,
-      photos: allPhotos,
+      thumbs: cardThumbs,
+      photos: cardThumbs,
       coverThumb,
       imageCount,
       createdAt: toMillis(data.createdAt),
