@@ -192,7 +192,7 @@ export interface PropertiesPageResult {
  */
 export async function fetchPublishedPage(
   cursor?: string | null,
-  pageSize = 8,
+  pageSize = 60,
   district?: string | null
 ): Promise<PropertiesPageResult> {
   const constraints: any[] = [
@@ -257,8 +257,8 @@ export async function fetchPublishedPage(
           allPhotos.length ||
           1;
 
-        // Send up to 3 high-res preview photos per card for smooth swiping across all listings
-        const cardThumbs = allPhotos.slice(0, 3);
+        // Keep all listing photos so users can swipe through every photo on cards and in details
+        const cardThumbs = allPhotos;
 
         const { photos: _p, images: _i, ...rest } = data;
 
@@ -303,8 +303,8 @@ export async function fetchPublishedPage(
       allPhotos.length ||
       1;
 
-    // Send up to 3 high-res preview photos per card for smooth swiping across all listings
-    const cardThumbs = allPhotos.slice(0, 3);
+    // Keep all listing photos so users can swipe through every photo on cards and in details
+    const cardThumbs = allPhotos;
 
     const { photos: _p, images: _i, ...rest } = data;
 
@@ -352,11 +352,11 @@ export async function fetchPropertyWithImages(propertyId: string): Promise<Prope
     : undefined;
 
   const images =
-    fullImages && fullImages.length > 0
-      ? fullImages
-      : data.thumbs && data.thumbs.length > 0
-        ? data.thumbs
-        : data.images || data.photos || (data.coverThumb ? [data.coverThumb] : []);
+    (fullImages && fullImages.length > 0 ? fullImages : null) ||
+    (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos : null) ||
+    (Array.isArray(data.images) && data.images.length > 0 ? data.images : null) ||
+    (Array.isArray(data.thumbs) && data.thumbs.length > 0 ? data.thumbs : null) ||
+    (data.coverThumb ? [data.coverThumb] : []);
 
   return {
     ...data,

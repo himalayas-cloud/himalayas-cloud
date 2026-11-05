@@ -302,7 +302,7 @@ export default function HomeClient({
               <span>List a room</span>
             </button>
             <Link href="/rooms-for-rent-in-sirmaur" className="roomster-cta-btn secondary">
-              <Search size={18} />
+              <Search size={18} color="var(--primary, #F26A1B)" />
               <span>Find a room</span>
             </Link>
           </div>

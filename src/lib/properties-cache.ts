@@ -8,19 +8,19 @@ import {
   PropertiesPageResult,
 } from "./properties";
 
-export const PAGE_SIZE = 8;
+export const PAGE_SIZE = 60;
 
 async function compressServerThumb(base64Str: string): Promise<string> {
-  if (!base64Str || !base64Str.startsWith("data:image") || base64Str.length < 35_000) {
+  if (!base64Str || !base64Str.startsWith("data:image") || base64Str.length < 15_000) {
     return base64Str;
   }
   try {
-    const match = base64Str.match(/^data:image\/[a-zA-Z+]+;base64,(.+)$/);
-    const data = match ? match[1] : base64Str;
-    const inputBuffer = Buffer.from(data, "base64");
+    const commaIdx = base64Str.indexOf(",");
+    const raw = commaIdx !== -1 ? base64Str.slice(commaIdx + 1) : base64Str;
+    const inputBuffer = Buffer.from(raw, "base64");
     const thumbBuffer = await sharp(inputBuffer)
-      .resize({ width: 720, withoutEnlargement: true })
-      .jpeg({ quality: 80, mozjpeg: true })
+      .resize({ width: 360, withoutEnlargement: true })
+      .jpeg({ quality: 48, mozjpeg: true })
       .toBuffer();
     return `data:image/jpeg;base64,${thumbBuffer.toString("base64")}`;
   } catch {
@@ -31,20 +31,28 @@ async function compressServerThumb(base64Str: string): Promise<string> {
 async function sanitizePageResult(page: PropertiesPageResult): Promise<PropertiesPageResult> {
   const sanitizedItems = await Promise.all(
     page.items.map(async (item) => {
-      let coverThumb = item.coverThumb || "";
-      if (coverThumb.startsWith("data:image") && coverThumb.length > 35_000) {
-        coverThumb = await compressServerThumb(coverThumb);
-      }
-      const thumbs = await Promise.all(
-        (item.thumbs || []).map((t) =>
-          t.startsWith("data:image") && t.length > 35_000 ? compressServerThumb(t) : Promise.resolve(t)
+      const allCandidatePhotos: string[] =
+        (Array.isArray(item.photos) && item.photos.length > 0 ? item.photos : null) ||
+        (Array.isArray(item.thumbs) && item.thumbs.length > 0 ? item.thumbs : null) ||
+        (item.coverThumb ? [item.coverThumb] : []);
+
+      const compressedPhotos = await Promise.all(
+        allCandidatePhotos.map((p) =>
+          typeof p === "string" && p.startsWith("data:image") && p.length > 15_000
+            ? compressServerThumb(p)
+            : Promise.resolve(p)
         )
       );
+
+      const coverThumb = compressedPhotos[0] || item.coverThumb || "";
+
+      const { photos: _p, images: _i, ...rest } = item as any;
+
       return {
-        ...item,
+        ...rest,
         coverThumb,
-        thumbs,
-        photos: thumbs,
+        thumbs: coverThumb ? [coverThumb] : [],
+        photos: compressedPhotos,
       };
     })
   );
@@ -55,7 +63,7 @@ export function getCachedPropertiesPage(
   cursor: string | null = null,
   district: string | null = null
 ): Promise<PropertiesPageResult> {
-  const cacheKey = ["properties-page-v8", district || "all", cursor || "initial"];
+  const cacheKey = ["properties-page-v9", district || "all", cursor || "initial"];
   return unstable_cache(
     async () => {
       const page = await fetchPublishedPage(cursor, PAGE_SIZE, district);
@@ -70,7 +78,7 @@ export function getCachedPropertiesPage(
 }
 
 export function getCachedAllProperties(district: string | null = null) {
-  const cacheKey = ["properties-all-v7", district || "all"];
+  const cacheKey = ["properties-all-v8", district || "all"];
   return unstable_cache(
     async () => {
       const items = await fetchPublishedProperties(district, 100);

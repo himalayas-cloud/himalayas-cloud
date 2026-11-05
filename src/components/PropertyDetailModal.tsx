@@ -73,6 +73,27 @@ export default function PropertyDetailModal({
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [extraPhotos, setExtraPhotos] = useState<string[] | null>(null);
+
+  // Progressive hydration: fetch all high-res photos for the property in the background
+  useEffect(() => {
+    if (!isOpen || !property?.id || property.id.startsWith("prop-")) {
+      setExtraPhotos(null);
+      return;
+    }
+    let isCancelled = false;
+    fetch(`/api/properties/${property.id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isCancelled && data && Array.isArray(data.photos) && data.photos.length > 0) {
+          setExtraPhotos(data.photos);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, property?.id]);
 
   // Reset photo index when a new property is opened
   useEffect(() => {
@@ -110,9 +131,9 @@ export default function PropertyDetailModal({
   if (!isOpen || !property) return null;
 
   const photos =
-    property.photos && property.photos.length > 0
-      ? property.photos
-      : ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"];
+    (extraPhotos && extraPhotos.length > 0 ? extraPhotos : null) ||
+    (property.photos && property.photos.length > 0 ? property.photos : null) ||
+    ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"];
 
   const handlePrevPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
