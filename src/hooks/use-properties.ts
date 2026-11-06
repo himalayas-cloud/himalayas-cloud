@@ -134,9 +134,12 @@ export function useInfiniteProperties(
 
 /**
  * Hook to fetch all published listings for map markers and full-dataset filtering.
+ * Skips request if all items are already provided by the initial page query.
  */
-export function useAllDistrictProperties(district?: string | null) {
-  const url = `/api/properties?all=true${district ? `&district=${encodeURIComponent(district)}` : ""}`;
+export function useAllDistrictProperties(district?: string | null, enabled = true) {
+  const url = enabled
+    ? `/api/properties?all=true${district ? `&district=${encodeURIComponent(district)}` : ""}`
+    : null;
   const { data, error, isLoading, mutate } = useSWR<{ items: PropertyListing[] }>(
     url,
     fetcher,

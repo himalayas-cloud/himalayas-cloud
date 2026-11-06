@@ -19,6 +19,7 @@ export default function PropertyImageCarousel({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
 
   const validImages = images && images.length > 0 ? images : ["/placeholder.svg"];
   const total = validImages.length;
@@ -50,14 +51,20 @@ export default function PropertyImageCarousel({
     scrollToIndex(index);
   };
 
-  // Sync index when user swipes on mobile / trackpad
+  // Sync index when user swipes on mobile / trackpad using requestAnimationFrame for 60/120fps smoothness
   const handleScroll = () => {
-    const container = containerRef.current;
-    if (!container || container.clientWidth === 0) return;
-    const newIndex = Math.round(container.scrollLeft / container.clientWidth);
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < total) {
-      setCurrentIndex(newIndex);
-    }
+    if (isScrollingRef.current) return;
+    isScrollingRef.current = true;
+    requestAnimationFrame(() => {
+      const container = containerRef.current;
+      if (container && container.clientWidth > 0) {
+        const newIndex = Math.round(container.scrollLeft / container.clientWidth);
+        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < total) {
+          setCurrentIndex(newIndex);
+        }
+      }
+      isScrollingRef.current = false;
+    });
   };
 
   return (
@@ -88,6 +95,7 @@ export default function PropertyImageCarousel({
           scrollbarWidth: "none",
           msOverflowStyle: "none",
           WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
         }}
       >
         {validImages.map((src, i) => (

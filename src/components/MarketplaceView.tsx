@@ -358,8 +358,9 @@ export default function MarketplaceView({
   } = useInfiniteProperties(initialPage, initialDistrict);
   useListingsLiveRefresh();
 
-  // Fetch all district listings for full map pins and deep filtering across all pages
-  const { items: allDistrictRawListings = [] } = useAllDistrictProperties(initialDistrict);
+  // Fetch all district listings for full map pins only if initialPage has a next cursor
+  const shouldFetchAllDistrict = Boolean(!initialPage || initialPage.nextCursor);
+  const { items: allDistrictRawListings = [] } = useAllDistrictProperties(initialDistrict, shouldFetchAllDistrict);
 
   const formatListing = React.useCallback(
     (l: any): Property => {
@@ -500,65 +501,67 @@ export default function MarketplaceView({
   // When filtering, search across the full district dataset so all matching rooms across all pages are found
   const sourceToFilter = isFilteringActive ? allDistrictProperties : combinedProperties;
 
-  // Filter properties with two-tier District & Town matching
-  const filteredProperties = sourceToFilter.filter((prop) => {
-    if (selectedCity !== "All") {
-      const target = selectedCity.toLowerCase().trim();
-      const propCity = (prop.city || "").toLowerCase().trim();
-      const propDist = ((prop as any).district || "").toLowerCase().trim();
-      const propAddr = (prop.address || "").toLowerCase();
-      const propLoc = (prop.locality || "").toLowerCase();
+  // Filter properties with two-tier District & Town matching (memoized to eliminate unnecessary recalculation)
+  const filteredProperties = React.useMemo(() => {
+    return sourceToFilter.filter((prop) => {
+      if (selectedCity !== "All") {
+        const target = selectedCity.toLowerCase().trim();
+        const propCity = (prop.city || "").toLowerCase().trim();
+        const propDist = ((prop as any).district || "").toLowerCase().trim();
+        const propAddr = (prop.address || "").toLowerCase();
+        const propLoc = (prop.locality || "").toLowerCase();
 
-      const matches =
-        propCity === target ||
-        propCity.includes(target) ||
-        target.includes(propCity) ||
-        propDist === target ||
-        propDist.includes(target) ||
-        propAddr.includes(target) ||
-        propLoc.includes(target);
+        const matches =
+          propCity === target ||
+          propCity.includes(target) ||
+          target.includes(propCity) ||
+          propDist === target ||
+          propDist.includes(target) ||
+          propAddr.includes(target) ||
+          propLoc.includes(target);
 
-      if (!matches) return false;
-    }
-    if (
-      searchQuery &&
-      !prop.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !(prop.address || prop.locality || "").toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    if (typeFilter !== "all" && prop.type !== typeFilter) return false;
+        if (!matches) return false;
+      }
+      if (
+        searchQuery &&
+        !prop.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !(prop.address || prop.locality || "").toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+      if (typeFilter !== "all" && prop.type !== typeFilter) return false;
 
-    // Budget filter with slider values
-    if (isBudgetApplied) {
-      if (prop.price < minBudget || prop.price > maxBudget) return false;
-    }
+      // Budget filter with slider values
+      if (isBudgetApplied) {
+        if (prop.price < minBudget || prop.price > maxBudget) return false;
+      }
 
-    if (
-      furnishingFilter === "no-furnished" &&
-      (prop.furnished === "Yes" ||
-        prop.furnished === "Furnished" ||
-        prop.furnished === "Semi" ||
-        prop.furnished === "Semi-Furnished")
-    ) {
-      return false;
-    }
-    if (
-      furnishingFilter === "semi" &&
-      prop.furnished !== "Semi" &&
-      prop.furnished !== "Semi-Furnished"
-    ) {
-      return false;
-    }
-    if (
-      furnishingFilter === "furnished" &&
-      prop.furnished !== "Yes" &&
-      prop.furnished !== "Furnished"
-    ) {
-      return false;
-    }
-    return true;
-  });
+      if (
+        furnishingFilter === "no-furnished" &&
+        (prop.furnished === "Yes" ||
+          prop.furnished === "Furnished" ||
+          prop.furnished === "Semi" ||
+          prop.furnished === "Semi-Furnished")
+      ) {
+        return false;
+      }
+      if (
+        furnishingFilter === "semi" &&
+        prop.furnished !== "Semi" &&
+        prop.furnished !== "Semi-Furnished"
+      ) {
+        return false;
+      }
+      if (
+        furnishingFilter === "furnished" &&
+        prop.furnished !== "Yes" &&
+        prop.furnished !== "Furnished"
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [sourceToFilter, selectedCity, searchQuery, typeFilter, isBudgetApplied, minBudget, maxBudget, furnishingFilter]);
 
   // Map display: If filtering is active, show all matching pins.
   // If not filtering, show pins for ALL rooms in the district so users on mobile and desktop can explore everything!

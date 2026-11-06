@@ -18,9 +18,10 @@ async function compressServerThumb(base64Str: string): Promise<string> {
     const commaIdx = base64Str.indexOf(",");
     const raw = commaIdx !== -1 ? base64Str.slice(commaIdx + 1) : base64Str;
     const inputBuffer = Buffer.from(raw, "base64");
+    // High-definition 720px thumbnail with mozjpeg compression for crisp Retina clarity
     const thumbBuffer = await sharp(inputBuffer)
-      .resize({ width: 360, withoutEnlargement: true })
-      .jpeg({ quality: 48, mozjpeg: true })
+      .resize({ width: 720, withoutEnlargement: true })
+      .jpeg({ quality: 78, mozjpeg: true })
       .toBuffer();
     return `data:image/jpeg;base64,${thumbBuffer.toString("base64")}`;
   } catch {
